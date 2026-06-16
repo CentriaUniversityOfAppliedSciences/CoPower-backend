@@ -1,54 +1,45 @@
-# CoPower-Backend (version 0.9)
+Dashboard API based on MajakkaAPI
 
-![Project is co-funded by the European Union](funder-logo-en.png)
-[Project Website](https://www.interreg-npa.eu/projects/copower/home/)
+# Production server (Ubuntu 22.04)
 
-## Minimum requirements:
+# Install PostgreSQL
+sudo apt install postgresql
 
-### [Frontend](https://github.com/CentriaUniversityOfAppliedSciences/CoPower)
-```
-Node.js (24 LTS)
-Vue.js (3.5)
-```
+## Install Dotnet runtime and sdk
+- sudo apt install dotnet-sdk-10.0
+- sudo apt install dotnet-runtime-10.0
+- sudo apt install aspnetcore-runtime-10.0
 
-### [Backend (this repository)](https://github.com/CentriaUniversityOfAppliedSciences/CoPower-backend)
-```
-PostgreSQL (16)
-.NET (10)
-```
+## Install Dotnet dependancies
+dotnet dev-certs https
 
-### [Services](https://github.com/CentriaUniversityOfAppliedSciences/CoPower-services)
-```
-Python 3 (3.14)
-```
+## Install server port environment variable
+export ASPNETCORE_URLS="http://localhost:5100;https://localhost:5101;http://192.168.56.2:5100;https://192.168.56.102:5101"
 
-## Project structure
-Project is split into 3 parts
-- [Frontend](https://github.com/CentriaUniversityOfAppliedSciences/CoPower)
-- This repository is for the backend.
-- [Services](https://github.com/CentriaUniversityOfAppliedSciences/CoPower-services)
+## Set "env.json" environment variable file with the keys listed in "env_example.json"
 
-## How to get started
+## Run server
+dotnet Copower-Dashboard-API.dll
 
-1. Clone the repository
-2. Create the initial database structure and users by running **CreateInitialDatabase.sql**, if the databases does not exist. SQL script creates default user and organisation, they can be changed by updating the SQL file before running it.
-3. Create appsettings.json and env.json files based on the example files provided under **Copower-Dashboard-API** folder.
-4. Open the **Copower-Dashboard-API.sln** project file with Microsoft Visual Studio (minimum 2026 version required)
+# Development (Windows)
 
-## Building for production
-1. Open Microsoft Visual Studio 2026
-2. From the top menu click "Publish" and then "Publish Copower-Dashboard-API" and publish the build
-3. After published build has been finished copy the files to the destination folder and run **Copower-Dashboard-API.exe** (Windows) or **Copower-Dashboard-API.dll** (Linux) to start the server.
+## Set "env.json" environment variable file with the keys listed in "env_example.json"
 
+## Install PostgreSQL
+https://www.enterprisedb.com/downloads/postgres-postgresql-downloads
 
-# Contribution Guidelines
-## Missing a feature or found a bug?
-Please submit it as an issue to this repository with as much explanation about the bug or feature as possible. In case of a security, do not create a new issue, send email about it to ville.peltola@centria.fi.
+- Run database.sql script to create users and databases, instructions on how to run the file is at the start of this file
 
-## License: MIT
-See LICENSE for more information.
+## Install Visual Studio Community Edition
+https://visualstudio.microsoft.com/vs/community/ then open the project .sln file with it
 
-## Developers
-Centria University of Applied Sciences Ltd.
-- Ville Peltola (Developer)
-- Fabian Sander (Project Manager)
+## Install NuGet packages with NuGet Package Manager (Tools -> NuGet Package Manager -> Manage NuGet Packages for Solution...) if not installed
+- Azure.Identity
+- BCrypt.Net-Next
+- Microsoft.AspNetCore.Authentication.JwtBearer
+- Microsoft.EntityFrameworkCore
+- Microsoft.EntityFrameworkCore.Tools
+- Microsoft.Graph
+- Newtonsoft.Json
+- Npgsql.EntityFrameworkCore.PostgreSQL
+- Swashbuckle.AspNetCore

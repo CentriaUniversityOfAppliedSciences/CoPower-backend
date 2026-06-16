@@ -1,4 +1,5 @@
-﻿using Copower_API.Services;
+﻿using Copower_API.Models.API;
+using Copower_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -128,6 +129,31 @@ namespace Copower_API.Controllers
                     return BadRequest("APL" + e.Message);
                 else
                     return BadRequest("APL893451");
+            }
+        }
+
+        /// <summary>
+        /// Save measurements
+        /// </summary>
+        /// <param name="model">Array of measurement data to save</param>
+        /// <param name="apikey">API key for authentication</param>
+        /// <returns></returns>
+        [Authorize(AuthenticationSchemes = "ApiKey")]
+        [HttpPost("save/{apikey}")]
+        public async Task<IActionResult> Save([FromBody] List<APIMeasurementsSaveModel> model, String apikey)
+        {
+            try
+            {
+                var save = await apiService.SaveMeasurements(apikey, model);
+
+                return Ok(save);
+            }
+            catch (Exception e)
+            {
+                if (e.Message.Length == 6)
+                    return BadRequest("APS" + e.Message);
+                else
+                    return BadRequest("APS481713");
             }
         }
     }

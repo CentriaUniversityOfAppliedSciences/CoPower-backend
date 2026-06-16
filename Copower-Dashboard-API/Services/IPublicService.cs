@@ -42,15 +42,18 @@ namespace Copower_API.Services
     /// <summary>
     /// Public service implementation
     /// </summary>
-    /// <param name="commonContext">Common database context</param>
-    /// <param name="commondataContext">Common data context</param>
-    /// <param name="database1Context">Database1 context</param>
+    /// <param name="commonContextFactory">Common database context factory</param>
+    /// <param name="commondataContextFactory">Common data context factory</param>
+    /// <param name="database1ContextFactory">Database1 context factory</param>
     /// <param name="dBQueries">Database queries</param>
     /// <param name="generalService">General service</param>
     /// <param name="settings">Settings</param>
     /// <param name="utilsService">Utilities service</param>
-    public class PublicService(CommonContext commonContext, CommondataContext commondataContext, Database1Context database1Context, IDBQueries dBQueries, IGeneralService generalService, IOptions<Settings> settings, IUtilsService utilsService) : IPublicService
+    public class PublicService(IDbContextFactory<CommonContext> commonContextFactory, IDbContextFactory<CommondataContext> commondataContextFactory, IDbContextFactory<Database1Context> database1ContextFactory, IDBQueries dBQueries, IGeneralService generalService, IOptions<Settings> settings, IUtilsService utilsService) : IPublicService
     {
+        readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+        readonly IDbContextFactory<CommondataContext> _commondataContextFactory = commondataContextFactory;
+        readonly IDbContextFactory<Database1Context> _database1ContextFactory = database1ContextFactory;
         /// <inheritdoc/>
         public async Task<List<dynamic>> GetMeasurements(Guid sensorId, DateTime startTime, DateTime endTime)
         {
@@ -58,23 +61,24 @@ namespace Copower_API.Services
 
             try
             {
-                Log.Information("api", reqid, "Public.GetMeasurements", "New request");
+                generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 if (!utilsService.CheckTextInput(sensorId.ToString()))
                 {
-                    Log.Information("api", reqid, "Public.GetMeasurements", "Invalid sensor id input > " + sensorId.ToString());
+                    generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "Invalid sensor id input > " + sensorId.ToString());
                     throw new Exception("581319");
                 }
 
                 if (!utilsService.CheckUUID(sensorId))
                 {
-                    Log.Information("api", reqid, "Public.GetMeasurements", "Invalid sensor id uuid > " + sensorId.ToString());
+                    generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "Invalid sensor id uuid > " + sensorId.ToString());
                     throw new Exception("900011");
                 }
 
                 if ((endTime - startTime).TotalDays < 0)
                 {
-                    Log.Information("api", reqid, "Public.GetMeasurements", "End is later than start > " + (endTime - startTime).TotalDays);
+                    generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "End is later than start > " + (endTime - startTime).TotalDays);
                     throw new Exception("790563");
                 }
 
@@ -85,7 +89,7 @@ namespace Copower_API.Services
                 var dbid = await commonContext.DB.FirstOrDefaultAsync(d => d.Id == sensor.DBID);
                 if (dbid == null)
                 {
-                    Log.Information("api", reqid, "Public.GetMeasurements", "DBID not found > " + sensor.Id + " | " + sensor.DBID);
+                    generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "DBID not found > " + sensor.Id + " | " + sensor.DBID);
                     throw new Exception("852606");
                 }
 
@@ -102,6 +106,7 @@ namespace Copower_API.Services
                 {
                     case "commondata":
                         {
+                            await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
                             var results = await commondataContext.Set<MeasurementData>().FromSqlRaw(sqlQuery).ToListAsync();
                             if (settings.Value.VAT.RequiredMeasurements.Contains(sensor.DBVALUE) == true)
                             {
@@ -111,27 +116,30 @@ namespace Copower_API.Services
                                 }
                             }
                             cresults.AddRange(results.Select(row => new { x = new DateTimeOffset(row.Date).ToUnixTimeSeconds(), y = row.Value }));
+                            await commondataContext.DisposeAsync();
                             break;
                         }
                     case "database1":
                         {
+                            await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
                             var results = await database1Context.Set<MeasurementData>().FromSqlRaw(sqlQuery).ToListAsync();
                             cresults.AddRange(results.Select(row => new { x = new DateTimeOffset(row.Date).ToUnixTimeSeconds(), y = row.Value }));
+                            await database1Context.DisposeAsync();
                             break;
                         }
                     default:
                         {
-                            Log.Information("api", reqid, "Public.GetMeasurements", "Invalid database name > " + dbname);
+                            generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "Invalid database name > " + dbname);
                             throw new Exception("376240");
                         }
                 }
 
-                Log.Information("api", reqid, "Public.GetMeasurements", "Request success > " + cresults.Count);
+                generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "Public measurements found > " + cresults.Count);
                 return cresults;
             }
             catch (Exception e)
             {
-                Log.Information("api", reqid, "Public.GetMeasurements", "Error occurred > " + e.Message);
+                generalService.WriteLogMessage("api", reqid, "Public.GetMeasurements", "Error occurred > " + e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -147,7 +155,9 @@ namespace Copower_API.Services
 
             try
             {
-                generalService.WriteLogMessage("api", reqid, "Public.GetPublicDashboard", "Load public dashboard");
+                generalService.WriteLogMessage("api", reqid, "Public.GetPublicDashboard", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var defaultDashboard = await commonContext.DashboardDefault.FirstOrDefaultAsync(d => d.Id == "public") ?? throw new Exception("355281");
                 if (defaultDashboard.Dashboard == null)
                 {
@@ -182,6 +192,7 @@ namespace Copower_API.Services
                     dashboardObjects.Add(dashboardObject);
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Public.GetPublicDashboard", "Public dashboard objects found > " + dashboardObjects.Count);
                 return dashboardObjects;
             }
             catch (Exception e)

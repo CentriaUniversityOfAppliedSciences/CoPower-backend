@@ -2,6 +2,7 @@
 using Copower_API.Entities;
 using Copower_API.Models.Organisation;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
 
 namespace Copower_API.Services
 {
@@ -67,11 +68,12 @@ namespace Copower_API.Services
     /// <summary>
     /// Organisation Service
     /// </summary>
-    /// <param name="commonContext">Common context</param>
+    /// <param name="commonContextFactory">Common context factory</param>
     /// <param name="generalService">General service</param>
     /// <param name="utilsService">Utils service</param>
-    public class OrganisationService(CommonContext commonContext, IGeneralService generalService, IUtilsService utilsService) : IOrganisationService
+    public class OrganisationService(IDbContextFactory<CommonContext> commonContextFactory, IGeneralService generalService, IUtilsService utilsService) : IOrganisationService
     {
+        private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
         /// <inheritdoc/>
         /// 
         public async Task<bool> AddNew(Guid? userId, OrganisationAdd organisation)
@@ -80,6 +82,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Organisation.AddNew", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.AddNew");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -89,7 +94,7 @@ namespace Copower_API.Services
                     throw new Exception("898511");
                 }
 
-                var db = commonContext.DB.FirstOrDefault(a => a.IdNumber == organisation.Type) ?? throw new Exception("576301");
+                var db = await commonContext.DB.FirstOrDefaultAsync(a => a.IdNumber == organisation.Type) ?? throw new Exception("576301");
 
                 var newOrganisation = new Organisation
                 {
@@ -100,9 +105,10 @@ namespace Copower_API.Services
                     Type = organisation.Type
                 };
 
-                commonContext.Organisation.Add(newOrganisation);
+                await commonContext.Organisation.AddAsync(newOrganisation);
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Organisation.AddNew", "New organisation added successfully");
                 return true;
             }
             catch (Exception e)
@@ -121,6 +127,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Organisation.Delete", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.Delete");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -139,7 +148,7 @@ namespace Copower_API.Services
 
                 string[] dlt = ["", ""];
 
-                List<Entities.User> ousers = [.. commonContext.User.Where(u => u.Organisation == org.Id)];
+                List<Entities.User> ousers = [.. await commonContext.User.Where(u => u.Organisation == org.Id).ToListAsync()];
                 if (ousers.Count > 0)
                 {
                     List<Guid?> usrs = [];
@@ -150,7 +159,7 @@ namespace Copower_API.Services
                     dlt[0] += string.Join(',', usrs);
                 }
 
-                List<SensorSettings> osensors = [.. commonContext.SensorSettings.Where(s => s.Organisation == org.Id)];
+                List<SensorSettings> osensors = [.. await commonContext.SensorSettings.Where(s => s.Organisation == org.Id).ToListAsync()];
                 if (osensors.Count > 0)
                 {
                     List<Guid?> snr = [];
@@ -165,6 +174,7 @@ namespace Copower_API.Services
 
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Organisation.Delete", "Organisation deleted successfully");
                 return true;
             }
             catch (Exception e)
@@ -182,6 +192,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Organisation.Edit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.Edit");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -222,6 +235,7 @@ namespace Copower_API.Services
                     await commonContext.SaveChangesAsync();
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Organisation.Edit", "Organisation edited successfully");
                 return true;
             }
             catch (Exception e)
@@ -239,6 +253,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Organisation.GetInit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.GetInit") ?? throw new Exception("200502");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -268,6 +285,8 @@ namespace Copower_API.Services
                         Name = org.Name
                     });
                 }
+
+                generalService.WriteLogMessage("api", reqid, "Organisation.GetInit", "Request success > " + dbList.Count);
                 return dbList;
             }
             catch (Exception e)
@@ -286,6 +305,7 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Organisation.GetList", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.GetList") ?? throw new Exception("200502");
                 utilsService.CheckIfHasOrganisation(user);
@@ -297,9 +317,9 @@ namespace Copower_API.Services
                 var rorgs = new List<OrganisationList>();
                 
                 if (user.Access == "appadmin")
-                    orgs = [.. commonContext.Organisation.OrderBy(o => o.Name).Where(o => o.Deleted == null)];
+                    orgs = [.. await commonContext.Organisation.OrderBy(o => o.Name).Where(o => o.Deleted == null).ToListAsync()];
                 else
-                    orgs = [.. commonContext.Organisation.OrderBy(o => o.Name).Where(o => o.Id == user.Organisation && o.Disabled == false && o.Deleted == null)];
+                    orgs = [.. await commonContext.Organisation.OrderBy(o => o.Name).Where(o => o.Id == user.Organisation && o.Disabled == false && o.Deleted == null).ToListAsync()];
 
                 if (orgs.Count > 0)
                 {
@@ -317,7 +337,7 @@ namespace Copower_API.Services
                     }
                 }
 
-                generalService.WriteLogMessage("api", reqid, "Organisation.GetList", "Request success > " + rorgs.Count);
+                generalService.WriteLogMessage("api", reqid, "Organisation.GetList", "Organisations retrieved > " + rorgs.Count);
                 return rorgs;
             }
             catch (Exception e)
@@ -335,6 +355,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Organisation.Update", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Organisation.Update");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -354,6 +377,7 @@ namespace Copower_API.Services
                 org.Name = updateData.Name;
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Organisation.Update", "Organisation updated successfully");
                 return true;
             }
             catch (Exception e)

@@ -1,4 +1,5 @@
-﻿using Copower_API.Models.Measurements;
+﻿using Copower_API.Models.API;
+using Copower_API.Models.Measurements;
 using Copower_API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -79,24 +80,26 @@ namespace Copower_API.Controllers
         /// Save measurements
         /// </summary>
         /// <param name="model">Array of measurement data to save</param>
-        /// <param name="apikey">API key for authentication</param>
+        /// <param name="sensorId">Sensor Id</param>
         /// <returns></returns>
-        [Authorize(AuthenticationSchemes = "ApiKey")]
-        [HttpPost("save/{apikey}")]
-        public async Task<IActionResult> Save([FromBody] List<MeasurementsSaveModel> model, String apikey)
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
+        [HttpPost("save/{sensorId}")]
+        public async Task<IActionResult> Save([FromBody] MeasurementsSaveModel model, Guid sensorId)
         {
             try
             {
-                var save = await measurementsService.SaveMeasurements(apikey, model);
+                var userId = utilsService.CheckAuthorization(Request);
+
+                var save = await measurementsService.SaveMeasurements(userId, sensorId, model);
 
                 return Ok(save);
             }
             catch (Exception e)
             {
                 if (e.Message.Length == 6)
-                    return BadRequest("MES" + e.Message);
+                    return BadRequest("APS" + e.Message);
                 else
-                    return BadRequest("MES481713");
+                    return BadRequest("APS481713");
             }
         }
     }

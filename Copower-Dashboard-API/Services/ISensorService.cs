@@ -4,6 +4,7 @@ using Copower_API.Models.Sensor;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.Security;
+using Serilog;
 using System.Data;
 
 namespace Copower_API.Services
@@ -82,14 +83,19 @@ namespace Copower_API.Services
     /// <remarks>
     /// Constructor for services
     /// </remarks>
-    /// <param name="commonContext">Common context</param>
-    /// <param name="commondataContext">Common data context</param>
-    /// <param name="database1Context">Database1 context</param>
-    /// <param name="database2Context">Database2 context</param>
+    /// <param name="commonContextFactory">Common context factory</param>
+    /// <param name="commondataContextFactory">Common data context factory</param>
+    /// <param name="database1ContextFactory">Database1 context factory</param>
+    /// <param name="database2ContextFactory">Database2 context factory</param>
     /// <param name="generalService">General service</param>
     /// <param name="utilsService">Utils service</param>
-    public class SensorService(CommonContext commonContext, CommondataContext commondataContext, Database1Context database1Context, Database2Context database2Context, IGeneralService generalService, IUtilsService utilsService) : ISensorService
+    public class SensorService(IDbContextFactory<CommonContext> commonContextFactory, IDbContextFactory<CommondataContext> commondataContextFactory, IDbContextFactory<Database1Context> database1ContextFactory, IDbContextFactory<Database2Context> database2ContextFactory, IGeneralService generalService, IUtilsService utilsService) : ISensorService
     {
+        readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+        readonly IDbContextFactory<CommondataContext> _commondataContextFactory = commondataContextFactory;
+        readonly IDbContextFactory<Database1Context> _database1ContextFactory = database1ContextFactory;
+        readonly IDbContextFactory<Database2Context> _database2ContextFactory = database2ContextFactory;
+
         /// <inheritdoc/>
         public async Task<Boolean> Add(SensorAddEditModel sensorData, Guid userId, Guid orgId)
         {
@@ -97,7 +103,10 @@ namespace Copower_API.Services
 
             try
             {
-                var user = await utilsService.GetUser(userId, reqid, "Users.Edit") ?? throw new Exception("220852");
+                generalService.WriteLogMessage("api", reqid, "Sensor.Add", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
+                var user = await utilsService.GetUser(userId, reqid, "Sensor.Add") ?? throw new Exception("220852");
                 utilsService.CheckIfHasOrganisation(user);
 
                 if (((user.Access != "admin") && (user.Access != "appadmin")) || ((user.Access == "admin") && (user.Organisation != orgId)))
@@ -128,9 +137,10 @@ namespace Copower_API.Services
                     ValueChange = sensorData.ValueChange
                 };
 
-                commonContext.SensorSettings.Add(newsensor);
+                await commonContext.SensorSettings.AddAsync(newsensor);
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Sensor.Add", "Sensor added successfully");
                 return true;
             }
             catch (Exception e)
@@ -148,6 +158,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Sensor.Delete", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(requesterId, reqid, "Sensor.Delete");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -161,12 +174,13 @@ namespace Copower_API.Services
                 sensor.Deleted = DateTime.UtcNow;
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Sensor.Delete", "Sensor deleted successfully");
                 return false;
             }
             catch (Exception e)
             {
                 if (e.Message.Length > 6)
-                    generalService.WriteLogMessage("api", reqid, "Sensor.Edit", "Error occured > " + e.Message);
+                    generalService.WriteLogMessage("api", reqid, "Sensor.Delete", "Error occured > " + e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -178,6 +192,9 @@ namespace Copower_API.Services
             
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Sensor.Edit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Sensor.Edit");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -206,6 +223,7 @@ namespace Copower_API.Services
                 sensor.ValueChange = sensorData.ValueChange;
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Sensor.Edit", "Sensor edited successfully");
                 return true;
             }
             catch (Exception e)
@@ -223,6 +241,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Sensor.Get", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Sensor.Get");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -291,9 +312,9 @@ namespace Copower_API.Services
                 }
                 else if (user.Access == "admin")
                 {
-                    var org = commonContext.Organisation.FirstOrDefault(o => o.Id == user.Organisation && o.Deleted == null && o.Disabled == false) ?? throw new Exception("238941");
+                    var org = await commonContext.Organisation.FirstOrDefaultAsync(o => o.Id == user.Organisation && o.Deleted == null && o.Disabled == false) ?? throw new Exception("238941");
 
-                    var db = commonContext.DB.FirstOrDefault(d => d.IdNumber == org.Type && d.DBId != "none") ?? throw new Exception("573023");
+                    var db = await commonContext.DB.FirstOrDefaultAsync(d => d.IdNumber == org.Type && d.DBId != "none") ?? throw new Exception("573023");
                     sources.AddRange(await GetSourceDataFromTables(db.DBId));
                     sourcesName.Add(new SourcesNameList
                     {
@@ -343,6 +364,7 @@ namespace Copower_API.Services
                     SourcesName = sourcesName
                 };
 
+                generalService.WriteLogMessage("api", reqid, "Sensor.Get", "Sensor objects found > " + results.Organisations.Count);
                 return results;
             }
             catch (Exception e)
@@ -360,6 +382,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Sensor.GetEdit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(reqId, reqid, "Sensor.Edit");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -368,9 +393,9 @@ namespace Copower_API.Services
                 if (user.Access == "appadmin")
                 {
                     if (dashboardType == "public")
-                        snrs = [.. commonContext.SensorSettings.Where(s => s.Deleted == null && s.Shared == 2).OrderBy(s => s.Name).ToList()];
+                        snrs = [.. await commonContext.SensorSettings.Where(s => s.Deleted == null && s.Shared == 2).OrderBy(s => s.Name).ToListAsync()];
                     else
-                        snrs = [.. commonContext.SensorSettings.Where(s => s.Deleted == null).OrderBy(s => s.Name).ToList()];
+                        snrs = [.. await commonContext.SensorSettings.Where(s => s.Deleted == null).OrderBy(s => s.Name).ToListAsync()];
                 }
                 else
                 {
@@ -379,12 +404,12 @@ namespace Copower_API.Services
                         generalService.WriteLogMessage("api", reqid, "Sensor.GetEdit", "Invalid access > " + user.Id);
                         throw new Exception("348751");
                     }
-                    snrs = [.. commonContext.SensorSettings.Where(s => (s.Organisation == user.Organisation || s.Shared > 0) && s.Deleted == null).OrderBy(s => s.Name).ToList()];
+                    snrs = [.. await commonContext.SensorSettings.Where(s => (s.Organisation == user.Organisation || s.Shared > 0) && s.Deleted == null).OrderBy(s => s.Name).ToListAsync()];
                 }
 
                 foreach (var sensor in snrs)
                 {
-                    var org = commonContext.Organisation.FirstOrDefault(o => o.Id == sensor.Organisation);
+                    var org = await commonContext.Organisation.FirstOrDefaultAsync(o => o.Id == sensor.Organisation);
 
                     sensors.Add(new SensorEditList
                     {
@@ -395,6 +420,7 @@ namespace Copower_API.Services
                     });
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Sensor.GetEdit", "Sensor edit objects found > " + sensors.Count);
                 return sensors;
             }
             catch (Exception e)
@@ -413,6 +439,7 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Sensor.GetList", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 if (utilsService.CheckTextInput(organisation.ToString()) == false)
                 {
@@ -438,11 +465,11 @@ namespace Copower_API.Services
 
                 if (userId == null) // Public request
                 {
-                    sensorSettings = [.. commonContext.SensorSettings.Where(s => s.Organisation == org.Id && s.Shared == 2 && s.Disabled == false && s.DisplayDashboard == true && s.Deleted == null).OrderBy(s => s.Name).ToList()];
+                    sensorSettings = [.. await commonContext.SensorSettings.Where(s => s.Organisation == org.Id && s.Shared == 2 && s.Disabled == false && s.DisplayDashboard == true && s.Deleted == null).OrderBy(s => s.Name).ToListAsync()];
                 }
                 else // User request
                 {
-                    sensorSettings = [.. commonContext.SensorSettings.Where(s => s.Organisation == org.Id && s.Shared > 0 && s.Disabled == false && s.DisplayDashboard == true && s.Deleted == null).OrderBy(s => s.Name).ToList()];
+                    sensorSettings = [.. await commonContext.SensorSettings.Where(s => s.Organisation == org.Id && s.Shared > 0 && s.Disabled == false && s.DisplayDashboard == true && s.Deleted == null).OrderBy(s => s.Name).ToListAsync()];
                 }
 
                 if (sensorSettings.Count == 0) // No sensors found
@@ -458,7 +485,7 @@ namespace Copower_API.Services
                     });
                 }
 
-                generalService.WriteLogMessage("api", reqid, "Sensor.GetList", "Request success > " + sensors.Count);
+                generalService.WriteLogMessage("api", reqid, "Sensor.GetList", "Sensors found > " + sensors.Count);
                 return [.. sensors];
             }
             catch (Exception e)
@@ -484,22 +511,30 @@ namespace Copower_API.Services
         {
             try
             {
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 System.Data.Common.DbConnection? connection = null;
                 switch (source)
                 {
                     case "commondata":
                         {
+                            await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
                             connection = commondataContext.Database.GetDbConnection();
+                            await commondataContext.DisposeAsync();
                             break;
                         }
                     case "database1":
                         {
+                            await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
                             connection = database1Context.Database.GetDbConnection();
+                            await database1Context.DisposeAsync();
                             break;
                         }
                     case "database2":
                         {
+                            await using var database2Context = await _database2ContextFactory.CreateDbContextAsync();
                             connection = database2Context.Database.GetDbConnection();
+                            await database2Context.DisposeAsync();
                             break;
                         }
                     default:
@@ -564,6 +599,11 @@ namespace Copower_API.Services
         {
             List<MeasurementData> results = [];
             var sqlQuery = $@"SELECT * FROM ""{tableName}"" ORDER BY ""Date"" DESC LIMIT 1";
+
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+            await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
+            await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
+            await using var database2Context = await _database2ContextFactory.CreateDbContextAsync();
 
             try
             {

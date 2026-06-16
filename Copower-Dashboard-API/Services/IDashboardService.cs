@@ -4,6 +4,7 @@ using Copower_API.Helpers;
 using Copower_API.Models.User;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Serilog;
 using System.Text.RegularExpressions;
 
 namespace Copower_API.Services
@@ -63,8 +64,10 @@ namespace Copower_API.Services
     /// <summary>
     /// Services for User Controller
     /// </summary>
-    public partial class DashboardService(CommonContext commonContext, IGeneralService generalService, IUtilsService utilsService, IOptions<Settings> settings) : IDashboardService
+    public partial class DashboardService(IDbContextFactory<CommonContext> commonContextFactory, IGeneralService generalService, IUtilsService utilsService, IOptions<Settings> settings) : IDashboardService
     {
+        private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+
         /// <inheritdoc/>
         public async Task<List<UserDashboard>> GetDashboardEdit(Guid userId, string dashboardType)
         {
@@ -72,6 +75,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Dashboard.GetDashboardEdit") ?? throw new Exception("355281");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -81,6 +87,7 @@ namespace Copower_API.Services
                     throw new Exception("348751");
                 }
 
+                var success = false;
                 switch (dashboardType)
                 {
                     case "default":
@@ -100,7 +107,11 @@ namespace Copower_API.Services
                         }
                 }
 
-                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Invalid daccess > " + dashboardType + ", " + user.Id);
+                if (success == true)
+                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Default dashboard retrieved successfully");
+                else
+                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Invalid dashboard type > " + dashboardType + ", " + user.Id);
+
                 throw new Exception("284230");
             }
             catch (Exception e)
@@ -122,6 +133,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardSensors", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Dashboard.GetDashboardSensors") ?? throw new Exception("355281");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -163,6 +177,7 @@ namespace Copower_API.Services
                     dashboardObjects.Add(dashboardObject);
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardSensors", "Dashboard sensors retrieved successfully > " + dashboardObjects.Count);
                 return dashboardObjects;
             }
             catch (Exception e)
@@ -184,6 +199,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardSensors", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboard", "Load default dashboard");
                 DashboardDefault? dashboard = null;
                 User? user = null;
@@ -252,6 +270,7 @@ namespace Copower_API.Services
                     dashboardObjects.Add(dashboardObject);
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardSensors", "Dashboard sensors retrieved successfully > " + dashboardObjects.Count);
                 return dashboardObjects;
             }
             catch (Exception e)
@@ -273,6 +292,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetHMI", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Dashboard.GetHMI");
                 if (user.Access != "appadmin")
                 {
@@ -308,7 +330,8 @@ namespace Copower_API.Services
                     }
                     hmiObj.Add(fObj);
                 }
-
+                
+                generalService.WriteLogMessage("api", reqid, "Dashboard.GetHMI", "HMI dashboard retrieved successfully > " + hmiObj.Count);
                 return hmiObj;
             }
             catch (Exception e)
@@ -331,6 +354,9 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Dashboard.UpdateDashboard", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Dashboard.UpdateDashboard") ?? throw new Exception("984084");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -381,7 +407,7 @@ namespace Copower_API.Services
                             var currentDashboard = await commonContext.DashboardDefault.FirstOrDefaultAsync(d => d.Id == user.Id.ToString());
                             if (currentDashboard == null)
                             {
-                                commonContext.DashboardDefault.Add(new DashboardDefault
+                                await commonContext.DashboardDefault.AddAsync(new DashboardDefault
                                 {
                                     Dashboard = [],
                                     Id = user.Id.ToString() ?? throw new Exception("385100")
@@ -396,8 +422,9 @@ namespace Copower_API.Services
                             break;
                         }
                 }
-                
                 await commonContext.SaveChangesAsync();
+
+                generalService.WriteLogMessage("api", reqid, "Dashboard.UpdateDashboard", "Dashboard updated successfully");
                 return true;
             }
             catch (Exception e)
@@ -418,6 +445,7 @@ namespace Copower_API.Services
         internal async Task<SensorSettings?> GetSensor(Guid sensorId, string dashboardType, User? user)
         {
             SensorSettings? sensor = null;
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
             if (user != null)
             {

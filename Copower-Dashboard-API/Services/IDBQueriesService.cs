@@ -31,29 +31,19 @@ namespace Copower_API.Services
         /// or equal to this value are included.</param>
         /// <param name="endTime">The end of the time range for the query, specified as a string. Only records with a timestamp less than or
         /// equal to this value are included.</param>
+        /// <param name="valueChange">How to change the value, optional</param>
         /// <returns>A SQL query string that selects measurement records from the specified table and database within the given
         /// time range.</returns>
-        string GetMeasurementsSQL(string database, string table, string startTime, string endTime);
+        string GetMeasurementsSQL(string database, string table, string startTime, string endTime, double? valueChange = 1);
     }
 
     /// <summary>
     /// Database queries service
     /// </summary>
-    /// <param name="commondataContext">Common data context</param>
-    /// <param name="database1Context">Copower data context</param>
-    public partial class DBQueries(CommondataContext commondataContext, Database1Context database1Context) : IDBQueries
+    public partial class DBQueries() : IDBQueries
     {
         private const string V = @"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?([Zz]|([\+-])([01]\d|2[0-3]):?([0-5]\d)?)?";
         private readonly string datePattern = V;
-
-        /// <summary>
-        /// Common data context
-        /// </summary>
-        public CommondataContext CommondataContext { get; } = commondataContext;
-        /// <summary>
-        /// CoPower data context
-        /// </summary>
-        public Database1Context Database1Context { get; } = database1Context;
 
         /// <inheritdoc/>
         public string GetLatestMeasurementSQL(string table)
@@ -74,7 +64,7 @@ namespace Copower_API.Services
         }
 
         /// <inheritdoc/>
-        public string GetMeasurementsSQL(string database, string table, string startTime, string endTime)
+        public string GetMeasurementsSQL(string database, string table, string startTime, string endTime, double? valueChange = 1)
         {
             if (string.IsNullOrEmpty(database))
                 throw new Exception("GMS283579");
@@ -103,7 +93,7 @@ namespace Copower_API.Services
                 return @$"
                    SELECT
                        DATE_TRUNC('minute', ""Date"") AS ""Date"",
-                       ROUND(AVG(""Value""::numeric), 1) AS ""Value""
+                       ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
                    FROM
                        ""{table}""
                    WHERE
@@ -119,7 +109,7 @@ namespace Copower_API.Services
                 return @$"
                     SELECT
                         DATE_TRUNC('hour', ""Date"") AS ""Date"",
-                        ROUND(AVG(""Value""::numeric), 1) AS ""Value""
+                        ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
                     FROM
                         ""{table}""
                     WHERE
@@ -135,7 +125,7 @@ namespace Copower_API.Services
                 return @$"
                     SELECT
                         DATE_TRUNC('day', ""Date"") AS ""Date"",
-                        ROUND(AVG(""Value""::numeric), 1) AS ""Value""
+                        ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
                     FROM
                         ""{table}""
                     WHERE
@@ -151,7 +141,7 @@ namespace Copower_API.Services
                 return @$"
                     SELECT
                         DATE_TRUNC('month', ""Date"") AS ""Date"",
-                        ROUND(AVG(""Value""::numeric), 1) AS ""Value""
+                        ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
                     FROM
                         ""{table}""
                     WHERE

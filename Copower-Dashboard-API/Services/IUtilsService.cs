@@ -126,28 +126,32 @@ namespace Copower_API.Services
         /// Asynchronously retrieves a user by their email address.
         /// </summary>
         /// <param name="email">The email address of the user to retrieve. Cannot be null or empty.</param>
-        /// /// <param name="source">A string indicating the source of the request, such as user</param>
+        /// <param name="reqId">A unique identifier for the request, used for tracking or correlation purposes. Cannot be null or empty.</param>
+        /// <param name="source">A string indicating the source of the request, such as the calling system or component. Cannot be null or
+        /// empty.</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the user associated with the
         /// specified email address, or null if no user is found.</returns>
-        Task<User?> GetUserByEmail(string email, String source);
+        Task<User?> GetUserByEmail(string email, string reqId, string source);
 
         /// <summary>
         /// Asynchronously retrieves a user by their unique identifier.
         /// </summary>
         /// <param name="id">The unique identifier of the user to retrieve. Cannot be null or empty.</param>
+        /// <param name="reqId">A unique identifier for the request, used for tracking or correlation purposes. Cannot be null or empty.</param>
         /// <param name="source">A string indicating the source of the request, such as user</param>
         /// <returns>A task that represents the asynchronous operation. The task result contains the user associated with the
         /// specified identifier, or null if no such user exists.</returns>
-        Task<User?> GetUserById(Guid id, String source);
+        Task<User?> GetUserById(Guid id, string reqId, string source);
 
         /// <summary>
         /// Retrieves a user by their unique identifier in a synchronous operation.
         /// </summary>
         /// <param name="id">The unique identifier of the user to retrieve. Cannot be null or empty.</param>
+        /// <param name="reqId">A unique identifier for the request, used for tracking or correlation purposes. Cannot be null or empty.</param>
         /// <param name="source">A string indicating the source of the request, such as user</param>
         /// <returns>A <see cref="User"/> object representing the user with the specified identifier, or <see langword="null"/>
         /// if no matching user is found.</returns>
-        User? GetUserByIdSync(Guid id, String source);
+        Task<User?> GetUserByIdSync(Guid id, string reqId, string source);
 
         /// <summary>
         /// Generates a cryptographic hash of the specified password for secure storage or verification.
@@ -376,6 +380,7 @@ namespace Copower_API.Services
         /// <inheritdoc/>
         public async Task<User> GetUser(Guid? userId, string reqId, string source, Boolean lockedAllowed = false)
         {
+            generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #1 > " + userId);
             if (userId == null)
             {
                 generalService.WriteLogMessage("api", reqId, source, "Invalid user id > " + userId);
@@ -393,8 +398,9 @@ namespace Copower_API.Services
         }
 
         /// <inheritdoc/>
-        public async Task<User?> GetUserByEmail(string email, string source)
+        public async Task<User?> GetUserByEmail(string email, string reqId, string source)
         {
+            generalService.WriteLogMessage("utils", reqId, source, "Fetching user by email > " + email);
             if (source == "user")
             {
                 return await commonContext.User.FirstOrDefaultAsync(u => u.Email == email && u.Deleted == null && u.Disabled == false && u.Registered != null);
@@ -404,8 +410,9 @@ namespace Copower_API.Services
         }
 
         /// <inheritdoc/>
-        public async Task<User?> GetUserById(Guid id, string source)
+        public async Task<User?> GetUserById(Guid id, string reqId, string source)
         {
+            generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #2 > " + id);
             if (source == "user")
             {
                 return await commonContext.User.FirstOrDefaultAsync(u => u.Id == id && u.Deleted == null && u.Disabled == false && u.Registered != null);
@@ -415,14 +422,15 @@ namespace Copower_API.Services
         }
 
         /// <inheritdoc/>
-        public User? GetUserByIdSync(Guid id, string source)
+        public async Task<User?> GetUserByIdSync(Guid id, string reqId, string source)
         {
+            generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #3 > " + id);
             if (source == "user")
             {
-                return commonContext.User.FirstOrDefault(u => u.Id == id && u.Deleted == null && u.Disabled == false && u.Registered != null);
+                return await commonContext.User.FirstOrDefaultAsync(u => u.Id == id && u.Deleted == null && u.Disabled == false && u.Registered != null);
             }
             else
-                return commonContext.User.FirstOrDefault(u => u.Id == id && u.Deleted == null && u.Disabled == false);
+                return await commonContext.User.FirstOrDefaultAsync(u => u.Id == id && u.Deleted == null && u.Disabled == false);
         }
 
         /// <inheritdoc/>

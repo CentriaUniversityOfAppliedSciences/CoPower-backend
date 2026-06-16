@@ -1,6 +1,7 @@
 ﻿using Copower_API.Context;
 using Copower_API.Entities;
 using Copower_API.Helpers;
+using Copower_API.Models.API;
 using Copower_API.Models.Measurements;
 using Copower_API.Models.User;
 using Microsoft.EntityFrameworkCore;
@@ -42,11 +43,11 @@ namespace Copower_API.Services
         /// <summary>
         /// Save measurements to database. This method validates the provided API key and saves the measurement data for each sensor in the input list to the corresponding database tables based on the sensor settings. It performs various checks on the input data, such as ensuring that the API key is valid, the number of sensors and values does not exceed specified limits, and that the sensors belong to the same organization as the API key. If any validation fails, an exception is thrown with an appropriate error message. If all validations pass, the method constructs and executes SQL insert statements to save the measurement data to the respective databases. Finally, it returns true if the operation is successful.
         /// </summary>
-        /// <param name="apikey">API key for authentication</param>
         /// <param name="data">List of measurement data to save</param>
+        /// <param name="sensorId">API key for authentication</param>
+        /// <param name="userId">User Id</param>
         /// <returns></returns>
-        Task<Boolean> SaveMeasurements(String apikey, List<MeasurementsSaveModel> data);
-        
+        Task<Boolean> SaveMeasurements(Guid userId, Guid sensorId, MeasurementsSaveModel data);
     }
     /// <summary>
     /// Services for Sensor Controller
@@ -54,18 +55,25 @@ namespace Copower_API.Services
     /// <remarks>
     /// Constructor for services
     /// </remarks>
-    /// <param name="commonContext">Common Context</param>
-    /// <param name="commondataContext">Commondata Context</param>
-    /// <param name="database1APIContext">Database1 API Context</param>
-    /// <param name="database1Context">Database1 Context</param>
-    /// <param name="database2APIContext">Database2 API Context</param>
-    /// <param name="database2Context">Database2 Context</param>
+    /// <param name="commonContextFactory">Common Context Factory</param>
+    /// <param name="commondataContextFactory">Commondata Context Factory</param>
+    /// <param name="database1APIContextFactory">Database1 API Context Factory</param>
+    /// <param name="database1ContextFactory">Database1 Context Factory</param>
+    /// <param name="database2APIContextFactory">Database2 API Context Factory</param>
+    /// <param name="database2ContextFactory">Database2 Context Factory</param>
     /// <param name="dBQueries">Database queries</param>
     /// <param name="generalService">General services</param>
     /// <param name="settings">App settings</param>
     /// <param name="utilsService">Utils Service</param>
-    public class MeasurementsService(CommonContext commonContext, CommondataContext commondataContext, Database1APIContext database1APIContext, Database1Context database1Context, Database2APIContext database2APIContext, Database2Context database2Context, IDBQueries dBQueries, IGeneralService generalService, IOptions<Settings> settings, IUtilsService utilsService) : IMeasurementsService
+    public class MeasurementsService(IDbContextFactory<CommonContext> commonContextFactory, IDbContextFactory<CommondataContext> commondataContextFactory, IDbContextFactory<Database1APIContext> database1APIContextFactory, IDbContextFactory<Database1Context> database1ContextFactory, IDbContextFactory<Database2APIContext> database2APIContextFactory, IDbContextFactory<Database2Context> database2ContextFactory, IDBQueries dBQueries, IGeneralService generalService, IOptions<Settings> settings, IUtilsService utilsService) : IMeasurementsService
     {
+        private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+        private readonly IDbContextFactory<CommondataContext> _commondataContextFactory = commondataContextFactory;
+        private readonly IDbContextFactory<Database1APIContext> _database1APIContextFactory = database1APIContextFactory;
+        private readonly IDbContextFactory<Database1Context> _database1ContextFactory = database1ContextFactory;
+        private readonly IDbContextFactory<Database2APIContext> _database2APIContextFactory = database2APIContextFactory;
+        private readonly IDbContextFactory<Database2Context> _database2ContextFactory = database2ContextFactory;
+
         /// <inheritdoc/>
         public async Task<List<MeasurementsHMIModel>> GetHMI(Guid? userId)
         {
@@ -73,6 +81,10 @@ namespace Copower_API.Services
 
             try
             {
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetHMI", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+                await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(userId, reqid, "Measurements.GetHMI");
                 if (user.Access != "appadmin")
                 {
@@ -121,11 +133,12 @@ namespace Copower_API.Services
                     }
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetHMI", "HMI dashboard retrieved successfully > " + HMIData.Count);
                 return HMIData;
             }
             catch (Exception e)
             {
-                Log.Information("api", reqid, "Measurements.GetHMI", "Error occurred > " + e.Message);
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetHMI", "Error occurred > " + e.Message);
                 throw new Exception(e.Message);
             }
         }
@@ -137,26 +150,27 @@ namespace Copower_API.Services
 
             try
             {
-                Log.Information("api", reqid, "Measurements.GetMeasurements", "New request");
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var user = await utilsService.GetUser(userId, reqid, "User.UpdateUser") ?? throw new Exception("355281");
                 utilsService.CheckIfHasOrganisation(user);
 
                 if (!utilsService.CheckTextInput(sensorId.ToString()))
                 {
-                    Log.Information("api", reqid, "Measurements.GetMeasurements", "Invalid sensor id input > " + sensorId.ToString());
+                    generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Invalid sensor id input > " + sensorId.ToString());
                     throw new Exception("581319");
                 }
 
                 if (!utilsService.CheckUUID(sensorId))
                 {
-                    Log.Information("api", reqid, "Measurements.GetMeasurements", "Invalid sensor id uuid > " + sensorId.ToString());
+                    generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Invalid sensor id uuid > " + sensorId.ToString());
                     throw new Exception("900011");
                 }
 
                 if ((endTime - startTime).TotalDays < 0)
                 {
-                    Log.Information("api", reqid, "Measurements.GetMeasurements", "End is later than start > " + (endTime - startTime).TotalDays);
+                    generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "End is later than start > " + (endTime - startTime).TotalDays);
                     throw new Exception("790563");
                 }
 
@@ -167,7 +181,7 @@ namespace Copower_API.Services
                 var dbid = await commonContext.DB.FirstOrDefaultAsync(d => d.Id == sensor.DBID);
                 if (dbid == null)
                 {
-                    Log.Information("api", reqid, "Measurements.GetMeasurements", "DBID not found > " + sensor.Id + " | " + sensor.DBID);
+                    generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "DBID not found > " + sensor.Id + " | " + sensor.DBID);
                     throw new Exception("852606");
                 }
 
@@ -178,133 +192,113 @@ namespace Copower_API.Services
 
                 var cresults = new List<dynamic>();
 
-                string sqlQuery = dBQueries.GetMeasurementsSQL(dbname, sensor.DBVALUE, stime, etime);
+                string sqlQuery = dBQueries.GetMeasurementsSQL(dbname, sensor.DBVALUE, stime, etime, sensor.ValueChange);
 
-                List<MeasurementData>? results = null;
+                List<MeasurementData> results = [];
                 switch (dbname)
                 {
                     case "commondata":
                         {
+                            await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
                             results = await commondataContext.Set<MeasurementData>().FromSqlRaw(sqlQuery).ToListAsync();
+                            await commondataContext.DisposeAsync();
                             break;
                         }
                     case "database1":
                         {
+                            await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
                             results = await database1Context.Set<MeasurementData>().FromSqlRaw(sqlQuery).ToListAsync();
+                            await database1Context.DisposeAsync();
                             break;
                         }
                     case "database2":
                         {
+                            await using var database2Context = await _database2ContextFactory.CreateDbContextAsync();
                             results = await database2Context.Set<MeasurementData>().FromSqlRaw(sqlQuery).ToListAsync();
+                            await database2Context.DisposeAsync();
                             break;
                         }
                     default:
                         { 
-                            Log.Information("api", reqid, "Measurements.GetMeasurements", "Invalid database name > " + dbname);
+                            generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Invalid database name > " + dbname);
                             throw new Exception("376240");
                         }
                 }
 
                 if (results != null)
                 {
-                    if (sensor.ValueChange != 1)
-                    {
-                        foreach (var row in results)
-                        {
-                            row.Value *= sensor.ValueChange ?? 1.0;
-                        }
-                    }
                     cresults.AddRange(results.Select(row => new { x = new DateTimeOffset(row.Date).ToUnixTimeSeconds(), y = row.Value }));
                 }
 
-                Log.Information("api", reqid, "Measurements.GetMeasurements", "Request success > " + cresults.Count);
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Measurements retrieved > " + cresults.Count);
                 return cresults;
             }
             catch (Exception e)
             {
-                Log.Information("api", reqid, "Measurements.GetMeasurements", "Error occurred > " + e.Message);
+                generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Error occurred > " + e.Message);
                 throw new Exception(e.Message);
             }
         }
 
         /// <inheritdoc/>
-        public async Task<Boolean> SaveMeasurements(String apikey, List<MeasurementsSaveModel> data)
+        public async Task<Boolean> SaveMeasurements(Guid userId, Guid sensorId, MeasurementsSaveModel data)
         {
             var reqid = utilsService.GetRequestId();
 
             try
             {
-                Log.Information("api", reqid, "Measurements.SaveMeasurements", "New request");
+                generalService.WriteLogMessage("api", reqid, "Measurements.SaveMeasurements", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
-                if (apikey.Length != settings.Value.APITokenLength)
-                    throw new Exception("927391");
+                var user = await utilsService.GetUser(userId, reqid, "User.UpdateUser") ?? throw new Exception("355281");
+                utilsService.CheckIfHasOrganisation(user);
 
-                var akey = commonContext.API.FirstOrDefault(a => a.Id == apikey) ?? throw new Exception("994359");
-                if (data.Count > 30)
-                    throw new Exception("230809");
+                var org = await commonContext.Organisation.FirstOrDefaultAsync(a => a.Id == user.Organisation) ?? throw new Exception("809318");
 
-                var org = commonContext.Organisation.FirstOrDefault(a => a.Id == akey.Organisation) ?? throw new Exception("809318");
+                var sensor = await commonContext.SensorSettings.FirstOrDefaultAsync(a => a.Id == sensorId) ?? throw new Exception("345191");
 
-                foreach (var s in data)
+                if (sensor.Organisation != user.Organisation)
+                    throw new Exception("345191");
+
+                var db = await commonContext.DB.FirstOrDefaultAsync(a => a.Id == sensor.DBID) ?? throw new Exception("345191");
+                var sqlBuilder = new StringBuilder("INSERT INTO \"" + sensor.DBVALUE + "\" (\"Date\", \"Value\") VALUES ");
+                var parameters = new List<object>();
+                sqlBuilder.Append($"({{{parameters.Count}}}, {{{parameters.Count + 1}}})");
+                parameters.Add(data.Date.ToUniversalTime());
+                parameters.Add(data.Value);
+
+                switch (db.DBId)
                 {
-                    if (s.Values.Count > 100)
-                        continue;
-
-                    var sensor = commonContext.SensorSettings.FirstOrDefault(a => a.Id == s.Sensor);
-                    if (sensor == null)
-                        continue;
-
-                    if (sensor.Organisation != akey.Organisation)
-                        continue;
-
-                    var db = commonContext.DB.FirstOrDefault(a => a.Id == sensor.DBID);
-                    if (db == null)
-                        continue;
-
-                    var sqlBuilder = new StringBuilder("INSERT INTO \"" + sensor.DBVALUE + "\" (\"Date\", \"Value\") VALUES ");
-                    var parameters = new List<object>();
-
-                    for (int i = 0; i < s.Values.Count; i++)
-                    {
-                        var u = s.Values[i];
-
-                        sqlBuilder.Append($"({{{parameters.Count}}}, {{{parameters.Count + 1}}})");
-
-                        parameters.Add(u.Date.ToUniversalTime());
-                        parameters.Add(u.Value);
-
-                        if (i < s.Values.Count - 1)
-                            sqlBuilder.Append(", ");
-                    }
-
-                    Console.WriteLine($"Params: {parameters.Count} {string.Join(", ", parameters)}");
-                    Console.WriteLine(sqlBuilder.ToString());
-
-                    switch (db.DBId)
-                    {
-                        case "database1":
-                            {
-                                var rowsAffected = database1APIContext.Database.ExecuteSqlInterpolated(
-                                    FormattableStringFactory.Create(sqlBuilder.ToString(), [.. parameters]));
-                                break;
-                            }
-                        case "database2":
-                            {
-                                var rowsAffected = database2APIContext.Database.ExecuteSqlInterpolated(
-                                    FormattableStringFactory.Create(sqlBuilder.ToString(), [.. parameters]));
-                                break;
-                            }
-                    }
+                    case "database1":
+                        {
+                            await using var database1APIContext = await _database1APIContextFactory.CreateDbContextAsync();
+                            var rowsAffected = database1APIContext.Database.ExecuteSqlInterpolated(
+                                FormattableStringFactory.Create(sqlBuilder.ToString(), [.. parameters]));
+                            await database1APIContext.DisposeAsync();
+                            break;
+                        }
+                    case "database2":
+                        {
+                            await using var database2APIContext = await _database2APIContextFactory.CreateDbContextAsync();
+                            var rowsAffected = database2APIContext.Database.ExecuteSqlInterpolated(
+                                FormattableStringFactory.Create(sqlBuilder.ToString(), [.. parameters]));
+                            await database2APIContext.DisposeAsync();
+                            break;
+                        }
+                    default:
+                        {
+                            throw new Exception("´420981");
+                        }
                 }
 
-                akey.LastUsed = DateTime.UtcNow;
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Measurements.SaveMeasurements", "Measurement saved successfully");
                 return true;
             }
             catch (Exception e)
             {
-                Log.Information("api", reqid, "Measurements.SaveMeasurements", "Error occurred > " + e.Message);
+                generalService.WriteLogMessage("api", reqid, "Measurements.SaveMeasurements", "Error occurred > " + e.Message);
                 throw new Exception(e.Message);
             }
         }

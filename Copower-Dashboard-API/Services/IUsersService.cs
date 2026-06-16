@@ -66,8 +66,10 @@ namespace Copower_API.Services
     /// <summary>
     /// Services for User Controller
     /// </summary>
-    public class UsersService(CommonContext commonContext, IConfiguration configuration, IGeneralService generalService, IUtilsService utilsService, IEmailService emailService, IOptions<Settings> settings) : IUsersService
+    public class UsersService(IDbContextFactory<CommonContext> commonContextFactory, IConfiguration configuration, IGeneralService generalService, IUtilsService utilsService, IEmailService emailService, IOptions<Settings> settings) : IUsersService
     {
+        private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+
         /// <inheritdoc/>
         public async Task<Boolean> Add(Guid? requesterId, Guid orgId, UsersAdd addData)
         {
@@ -76,6 +78,8 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Users.Add", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(requesterId, reqid, "Users.Add");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -101,13 +105,14 @@ namespace Copower_API.Services
                 if (utilsService.CheckAccess(addData.Access) == false)
                     throw new Exception("474019");
 
-                var existingUser = await utilsService.GetUserByEmail(addData.Email, "register");
+                var existingUser = await utilsService.GetUserByEmail(addData.Email, reqid, "register");
                 if (existingUser != null)
                 {
                     if (existingUser.Organisation == null)
                     {
                         existingUser.Organisation = orgId;
                         await commonContext.SaveChangesAsync();
+                        generalService.WriteLogMessage("api", reqid, "Users.Add", "User added successfully #1");
                         return true;
                     }
                     else
@@ -116,6 +121,7 @@ namespace Copower_API.Services
                 else
                 {
                     await CreateUser(addData, orgId);
+                    generalService.WriteLogMessage("api", reqid, "Users.Add", "User added successfully #2");
                     return true;
                 }
             }
@@ -139,6 +145,7 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Users.Delete", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var user = await utilsService.GetUser(requesterId, reqid, "Users.Delete");
                 utilsService.CheckIfHasOrganisation(user);
@@ -165,8 +172,9 @@ namespace Copower_API.Services
                 deleteUser.Organisation = null;
 
                 await commonContext.SaveChangesAsync();
-
-                return false;
+                
+                generalService.WriteLogMessage("api", reqid, "Users.Delete", "User deleted successfully");
+                return true;
             }
             catch (Exception e)
             {
@@ -188,6 +196,8 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Users.Edit", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
                 var user = await utilsService.GetUser(requesterId, reqid, "Users.Edit");
                 utilsService.CheckIfHasOrganisation(user);
 
@@ -228,6 +238,7 @@ namespace Copower_API.Services
                 commonContext.Update(editUser);
                 await commonContext.SaveChangesAsync();
 
+                generalService.WriteLogMessage("api", reqid, "Users.Edit", "User updated successfully");
                 return true;
             }
             catch (Exception e)
@@ -250,6 +261,7 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("api", reqid, "Users.GetAllUsers", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var user = await utilsService.GetUser(userId, reqid, "Users.GetAllUsers");
                 utilsService.CheckIfHasOrganisation(user);
@@ -262,7 +274,7 @@ namespace Copower_API.Services
 
                 if (user.Access == "appadmin")
                 {
-                    var orgs = commonContext.Organisation.Where(o => o.Deleted == null).ToList();
+                    var orgs = await commonContext.Organisation.Where(o => o.Deleted == null).ToListAsync();
 
                     foreach (Organisation o in orgs)
                     {
@@ -273,7 +285,7 @@ namespace Copower_API.Services
                         });
                     }
 
-                    List<User> users = [.. commonContext.User.Where(u => u.Deleted == null).OrderByDescending(u => u.Name)];
+                    List<User> users = [.. await commonContext.User.Where(u => u.Deleted == null).OrderByDescending(u => u.Name).ToListAsync()];
 
                     foreach (User u in users)
                     {
@@ -307,7 +319,7 @@ namespace Copower_API.Services
                         Name = org.Name
                     });
 
-                    List<User> users = [.. commonContext.User.Where(u => u.Organisation == user.Organisation && u.Deleted == null).OrderByDescending(u => u.Name)];
+                    List<User> users = [.. await commonContext.User.Where(u => u.Organisation == user.Organisation && u.Deleted == null).OrderByDescending(u => u.Name).ToListAsync()];
 
                     foreach (User u in users)
                     {
@@ -327,13 +339,14 @@ namespace Copower_API.Services
                     }
                 }
 
+                generalService.WriteLogMessage("api", reqid, "Users.GetAllUsers", "Retrieved all users successfully");
                 return rlist;
             }
             catch (Exception e)
             {
                 if (e.Message.Length > 6)
                 {
-                    generalService.WriteLogMessage("api", reqid, "Users.GetAlUsers", "Error occured > " + e.Message);
+                    generalService.WriteLogMessage("api", reqid, "Users.GetAllUsers", "Error occured > " + e.Message);
                     throw new Exception("174361");
                 }
                 else
@@ -349,6 +362,7 @@ namespace Copower_API.Services
             try
             {
                 generalService.WriteLogMessage("users", reqid, "Users.ResendInvitation", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var user = await utilsService.GetUser(userId, reqid, "Users.GetAllUsers");
                 utilsService.CheckIfHasOrganisation(user);
@@ -379,20 +393,22 @@ namespace Copower_API.Services
                 var mailReqId = Guid.NewGuid().ToString();
                 var frontendBaseUrl = configuration["Frontend:BaseUrl"] ?? throw new Exception("293080");
                 var resetLink = $"{frontendBaseUrl}/register/{resetToken}";
-                Console.WriteLine(resetLink);
 
                 try
                 {
                     Boolean emailSent = await emailService.PrepareSendEmail(mailReqId, resendUser.Id, "resend_invite", "universal", new Dictionary<string, string> { { "[sender]", user.Name }, { "[organisation]", org.Name }, { "[link]", resetLink } });
 
                     if (emailSent)
+                    {
+                        generalService.WriteLogMessage("users", reqid, "Users.ResendInvitation", "Invitation resent successfully");
                         return true;
+                    }
                     else
                         throw new Exception("143781");
                 }
                 catch (Exception e)
                 {
-                    generalService.WriteLogMessage("users", reqid, "Users.CreateUser", "Email sending error: " + e.Message);
+                    generalService.WriteLogMessage("users", reqid, "Users.ResendInvitation", "Email sending error: " + e.Message);
                     throw new Exception("442100");
                 }
             }
@@ -410,6 +426,8 @@ namespace Copower_API.Services
 
         private async Task<String> CreateResetToken(Guid userId)
         {
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+
             ResetTokens resetToken = new()
             {
                 Id = Guid.NewGuid(),
@@ -418,7 +436,7 @@ namespace Copower_API.Services
                 Expiry = DateTimeOffset.UtcNow.AddHours(1) // Token valid for 1 hour
             };
 
-            commonContext.ResetTokens.Add(resetToken);
+            await commonContext.ResetTokens.AddAsync(resetToken);
             await commonContext.SaveChangesAsync();
 
             return resetToken.Token;
@@ -445,7 +463,7 @@ namespace Copower_API.Services
 
             try
             {
-                generalService.WriteLogMessage("api", reqid, "Users.CreateUser", "New request");
+                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
                 var org = await commonContext.Organisation.FirstOrDefaultAsync(a => a.Id == orgId) ?? throw new Exception("307849");
 
@@ -459,7 +477,7 @@ namespace Copower_API.Services
                     Organisation = orgId
                 };
 
-                commonContext.User.Add(newUser);
+                await commonContext.User.AddAsync(newUser);
                 await commonContext.SaveChangesAsync();
 
                 // generate reset token and send reset email for new user
@@ -468,7 +486,6 @@ namespace Copower_API.Services
                 var mailReqId = Guid.NewGuid().ToString();
                 var frontendBaseUrl = configuration["Frontend:BaseUrl"] ?? throw new Exception("293080");
                 var resetLink = $"{frontendBaseUrl}/register/{resetToken}";
-                Console.WriteLine(resetLink);
 
                 try
                 {

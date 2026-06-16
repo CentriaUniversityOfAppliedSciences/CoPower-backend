@@ -75,12 +75,12 @@ builder.Configuration
 // Add services to the container.
 services.AddControllers();
 
-services.AddDbContext<CommonContext>();
-services.AddDbContext<CommondataContext>();
-services.AddDbContext<Database1Context>();
-services.AddDbContext<Database1APIContext>();
-services.AddDbContext<Database2Context>();
-services.AddDbContext<Database2APIContext>();
+services.AddDbContextFactory<CommonContext>();
+services.AddDbContextFactory<CommondataContext>();
+services.AddDbContextFactory<Database1Context>();
+services.AddDbContextFactory<Database1APIContext>();
+services.AddDbContextFactory<Database2Context>();
+services.AddDbContextFactory<Database2APIContext>();
 
 services.AddScoped<IAPIService, APIService>();
 services.AddScoped<IDashboardService, DashboardService>();
@@ -172,7 +172,6 @@ services
         {
             OnTokenValidated = context =>
             {
-                //Console.WriteLine("JWT Check");
                 var userService = context.HttpContext.RequestServices.GetRequiredService<IUserService>();
                 var claimsIdentity = context.Principal?.Identity as ClaimsIdentity;
                 var userIdClaim = claimsIdentity?.FindFirst("name")?.Value;
@@ -271,23 +270,12 @@ if (app.Environment.IsDevelopment())
 {
     Console.WriteLine("Server running in development");
     app.MapOpenApi(); // Enable OpenAPI support
-    /*app.UseSwaggerUI(options => // Configure Swagger UI to use this document
-    {
-        options.SwaggerEndpoint("/openapi/v1.json", "CoPower v1");
-        options.RoutePrefix = "swagger"; // UI at /swagger
-    }); // Enable Swagger UI*/
-    //app.UseDeveloperExceptionPage();
     app.MapScalarApiReference(opt =>
     {
         opt.Title = "Centria CoPower API v1";
         opt.SortOperationsByMethod()
             .SortTagsAlphabetically()
             .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
-
-        /*opt.AddPreferredSecuritySchemes("Apikey").AddApiKeyAuthentication("Apikey", apiKey =>
-        {
-            apiKey.Value = "apikey";
-        });*/
     });
 
     Console.WriteLine("Development settings set");

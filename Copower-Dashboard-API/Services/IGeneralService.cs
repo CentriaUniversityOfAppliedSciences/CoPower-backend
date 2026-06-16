@@ -39,7 +39,7 @@ namespace Copower_API.Services
         private readonly IHostApplicationLifetime _appLifeTime = appLifeTime;
         private readonly IConfiguration _configuration = configuration;
         private readonly ILogger<GeneralService> _logger = logger;
-        private readonly String serverMode = configuration.GetSection("Environment").Get<String>();
+        private readonly String serverMode = configuration.GetSection("Environment").Get<string>();
         /// <inheritdoc/>
         public void StopServer(string? errorMessage)
         {
@@ -76,8 +76,7 @@ namespace Copower_API.Services
             }
             catch (Exception e)
             {
-                if (e.Message.Length > 0)
-                    Console.WriteLine(e);
+                Console.WriteLine(e);
             }
         }
     }

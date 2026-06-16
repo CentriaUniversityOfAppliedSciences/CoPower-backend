@@ -66,15 +66,14 @@ namespace Copower_API.Services
         /// <summary>
         /// Email service
         /// </summary>
-        /// <param name="appSettings">App settings</param>
+        /// <param name="commonContextFactory">Database context factory</param>
         /// <param name="config">Server configuration</param>
-        /// <param name="commonContext">Common context</param>
         /// <param name="generalService">General service</param>
         /// <param name="utilsService">Utils service</param>
-        public EmailService(IConfiguration config, CommonContext commonContext, IGeneralService generalService, IUtilsService utilsService)
+        public EmailService(IConfiguration config, IDbContextFactory<CommonContext> commonContextFactory, IGeneralService generalService, IUtilsService utilsService)
         {
             _appSettings = config.GetSection("AppSettings").Get<AppSettings>() ?? throw new Exception("AppSettings failure");
-            _commonContext = commonContext;
+            _commonContext = commonContextFactory.CreateDbContext();
             _generalService = generalService;
             _utilsService = utilsService;
 
