@@ -178,12 +178,14 @@ namespace Copower_API.Services
     /// <remarks>This service centralizes common utility functions related to security, validation, and user
     /// management. It is intended to be used throughout the application wherever such operations are
     /// required.</remarks>
-    /// <param name="commonContext">The database context used for accessing and querying application data.</param>
+    /// <param name="commonContextFactory">The database context factory used for creating and managing database contexts.</param>
     /// <param name="generalService">A service for general-purpose operations such as logging and auxiliary tasks.</param>
     /// <param name="configuration">The application configuration provider used to access settings and secrets.</param>
     /// <param name="settings">The application settings options containing configuration values such as input constraints.</param>
-    public partial class UtilsService(CommonContext commonContext, IGeneralService generalService, IConfiguration configuration, IOptions<Settings> settings) : IUtilsService
+    public partial class UtilsService(IDbContextFactory<CommonContext> commonContextFactory, IGeneralService generalService, IConfiguration configuration, IOptions<Settings> settings) : IUtilsService
     {
+        private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
+
         private const string Lower = "abcdefghijklmnopqrstuvwxyz";
         private const string Upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         private const string Digits = "0123456789";
@@ -362,6 +364,7 @@ namespace Copower_API.Services
         /// <inheritdoc/>
         public async Task<Organisation> GetOrganisation(Guid orgId, string reqId, string source)
         {
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
             var organisation = await commonContext.Organisation.FirstOrDefaultAsync(o => o.Id == orgId && o.Disabled == false && o.Deleted == null);
             if (organisation == null)
             {
@@ -381,6 +384,7 @@ namespace Copower_API.Services
         public async Task<User> GetUser(Guid? userId, string reqId, string source, Boolean lockedAllowed = false)
         {
             generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #1 > " + userId);
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
             if (userId == null)
             {
                 generalService.WriteLogMessage("api", reqId, source, "Invalid user id > " + userId);
@@ -401,6 +405,7 @@ namespace Copower_API.Services
         public async Task<User?> GetUserByEmail(string email, string reqId, string source)
         {
             generalService.WriteLogMessage("utils", reqId, source, "Fetching user by email > " + email);
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
             if (source == "user")
             {
                 return await commonContext.User.FirstOrDefaultAsync(u => u.Email == email && u.Deleted == null && u.Disabled == false && u.Registered != null);
@@ -413,6 +418,7 @@ namespace Copower_API.Services
         public async Task<User?> GetUserById(Guid id, string reqId, string source)
         {
             generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #2 > " + id);
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
             if (source == "user")
             {
                 return await commonContext.User.FirstOrDefaultAsync(u => u.Id == id && u.Deleted == null && u.Disabled == false && u.Registered != null);
@@ -425,6 +431,7 @@ namespace Copower_API.Services
         public async Task<User?> GetUserByIdSync(Guid id, string reqId, string source)
         {
             generalService.WriteLogMessage("utils", reqId, source, "Fetching user by Id #3 > " + id);
+            await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
             if (source == "user")
             {
                 return await commonContext.User.FirstOrDefaultAsync(u => u.Id == id && u.Deleted == null && u.Disabled == false && u.Registered != null);

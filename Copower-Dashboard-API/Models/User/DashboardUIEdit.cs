@@ -15,5 +15,10 @@ namespace Copower_API.Models.User
         /// Sensors
         /// </summary>
         public required List<UserSensorData> Sensors { get; set; }
+
+        /// <summary>
+        /// Size of the grid item in x,y
+        /// </summary>
+        public int[] Size { get; set; } = [1, 1];
     }
 }

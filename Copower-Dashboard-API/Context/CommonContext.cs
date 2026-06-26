@@ -37,6 +37,11 @@ namespace Copower_API.Context
         public DbSet<API> API { get; set; }
 
         /// <summary>
+        /// Chart data fetch settings table
+        /// </summary>
+        public DbSet<ChartDataFetchSettings> ChartDataFetchSettings { get; set; }
+
+        /// <summary>
         /// Default dashboard table
         /// </summary>
         public DbSet<DashboardDefault> DashboardDefault { get; set; }
@@ -112,9 +117,81 @@ namespace Copower_API.Context
                 .HasColumnType("uuid")
                 .IsRequired(false);
 
+            // ChartDataFetchSettings
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day1)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day2)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day3)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day7)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day14)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day30)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day90)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day180)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Day365)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<ChartDataFetchSettings>()
+                .Property(e => e.Id)
+                .HasColumnType("integer")
+                .IsRequired(true);
+
+            modelBuilder.Entity<DB>(entity =>
+            {
+                entity.HasIndex(e => e.Id)
+                    .IsUnique();
+            });
+
             // DB
             modelBuilder.Entity<DB>()
+                .Property(e => e.ChartFetch)
+                .HasColumnType("integer")
+                .IsRequired(true);
+
+            modelBuilder.Entity<DB>()
                 .Property(e => e.DBId)
+                .HasColumnType("text")
+                .IsRequired(true);
+
+            modelBuilder.Entity<DB>()
+                .Property(e => e.IdNumber)
+                .HasColumnType("integer")
+                .IsRequired(false);
+
+            modelBuilder.Entity<DB>()
+                .Property(e => e.Name)
                 .HasColumnType("text")
                 .IsRequired(true);
 
@@ -127,16 +204,6 @@ namespace Copower_API.Context
                     .HasColumnType("uuid")
                     .HasDefaultValueSql("gen_random_uuid()");
             });
-
-            modelBuilder.Entity<DB>()
-                .Property(e => e.IdNumber)
-                .HasColumnType("integer")
-                .IsRequired(false);
-
-            modelBuilder.Entity<DB>()
-                .Property(e => e.Name)
-                .HasColumnType("text")
-                .IsRequired(true);
 
             // Dashboard
             modelBuilder.Entity<DashboardDefault>(entity =>

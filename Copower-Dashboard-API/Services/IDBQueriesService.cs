@@ -1,8 +1,9 @@
 ﻿using Copower_API.Context;
 using Copower_API.Entities;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using System.Text.RegularExpressions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Copower_API.Services
 {
@@ -25,6 +26,7 @@ namespace Copower_API.Services
         /// Generates a SQL query string to retrieve measurement records from the specified table within the given time
         /// range.
         /// </summary>
+        /// <param name="chartDataFetchSettings">The settings for fetching chart data.</param>
         /// <param name="database">The name of the database containing the measurements table. Cannot be null or empty.</param>
         /// <param name="table">The name of the table from which to select measurement records. Cannot be null or empty.</param>
         /// <param name="startTime">The start of the time range for the query, specified as a string. Only records with a timestamp greater than
@@ -34,7 +36,7 @@ namespace Copower_API.Services
         /// <param name="valueChange">How to change the value, optional</param>
         /// <returns>A SQL query string that selects measurement records from the specified table and database within the given
         /// time range.</returns>
-        string GetMeasurementsSQL(string database, string table, string startTime, string endTime, double? valueChange = 1);
+        string GetMeasurementsSQL(ChartDataFetchSettings chartDataFetchSettings, string database, string table, string startTime, string endTime, double? valueChange = 1);
     }
 
     /// <summary>
@@ -53,7 +55,7 @@ namespace Copower_API.Services
 
             return @$"
                 SELECT
-                    ""Id"", ""Date"", ""Value""
+                    ""Date"", ""Value""
                 FROM
                     ""{table}""
                 ORDER BY
@@ -64,7 +66,7 @@ namespace Copower_API.Services
         }
 
         /// <inheritdoc/>
-        public string GetMeasurementsSQL(string database, string table, string startTime, string endTime, double? valueChange = 1)
+        public string GetMeasurementsSQL(ChartDataFetchSettings chartDataFetchSettings, string database, string table, string startTime, string endTime, double? valueChange = 1)
         {
             if (string.IsNullOrEmpty(database))
                 throw new Exception("GMS283579");
@@ -88,68 +90,75 @@ namespace Copower_API.Services
             DateTime endTimeObj = DateTime.Parse(endTime, null, System.Globalization.DateTimeStyles.RoundtripKind);
 
             TimeSpan difference = endTimeObj - startTimeObj;
-            if (difference.TotalDays <= 7)
+
+            var aggregateRange = "1 month";
+            if (difference.TotalDays <= 1)
             {
-                return @$"
-                   SELECT
-                       DATE_TRUNC('minute', ""Date"") AS ""Date"",
-                       ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
-                   FROM
-                       ""{table}""
-                   WHERE
-                       ""Date"" BETWEEN '{startTime}' AND '{endTime}'
-                   GROUP BY
-                       DATE_TRUNC('minute', ""Date"")
-                   ORDER BY
-                       ""Date""
-                ";
+                aggregateRange = chartDataFetchSettings.Day1;
+            }
+            else if (difference.TotalDays <= 2)
+            {
+                aggregateRange = chartDataFetchSettings.Day2;
+            }
+            else if (difference.TotalDays <= 3)
+            {
+                aggregateRange = chartDataFetchSettings.Day3;
+            }
+            else if (difference.TotalDays <= 7)
+            {
+                aggregateRange = chartDataFetchSettings.Day7;
+            }
+            else if (difference.TotalDays <= 14)
+            {
+                aggregateRange = chartDataFetchSettings.Day14;
             }
             else if (difference.TotalDays <= 30)
             {
-                return @$"
-                    SELECT
-                        DATE_TRUNC('hour', ""Date"") AS ""Date"",
-                        ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
-                    FROM
-                        ""{table}""
-                    WHERE
-                        ""Date"" BETWEEN '{startTime}' AND '{endTime}'
-                    GROUP BY
-                        DATE_TRUNC('hour', ""Date"")
-                    ORDER BY
-                        ""Date""
-                ";
+                aggregateRange = chartDataFetchSettings.Day30;
+            }
+            else if (difference.TotalDays <= 90)
+            {
+                aggregateRange = chartDataFetchSettings.Day90;
+            }
+            else if (difference.TotalDays <= 180)
+            {
+                aggregateRange = chartDataFetchSettings.Day180;
             }
             else if (difference.TotalDays <= 365)
             {
+                aggregateRange = chartDataFetchSettings.Day365;
+            }
+
+            if (aggregateRange == "null")
+            {
                 return @$"
                     SELECT
-                        DATE_TRUNC('day', ""Date"") AS ""Date"",
-                        ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
+                        ""Date"",
+                        ROUND(""Value""::numeric * {valueChange}, 1) AS ""Value""
                     FROM
                         ""{table}""
                     WHERE
                         ""Date"" BETWEEN '{startTime}' AND '{endTime}'
                     GROUP BY
-                        DATE_TRUNC('day', ""Date"")
+                        1
                     ORDER BY
-                        ""Date""
+                        1
                 ";
             }
             else
             {
                 return @$"
                     SELECT
-                        DATE_TRUNC('month', ""Date"") AS ""Date"",
+                        date_bin('{aggregateRange}', ""Date"", TIMESTAMP '2000-01-01') AS ""Date"",
                         ROUND(AVG(""Value""::numeric) * {valueChange}, 1) AS ""Value""
                     FROM
                         ""{table}""
                     WHERE
                         ""Date"" BETWEEN '{startTime}' AND '{endTime}'
                     GROUP BY
-                        DATE_TRUNC('month', ""Date"")
+                        1
                     ORDER BY
-                        ""Date""
+                        1
                 ";
             }
         }

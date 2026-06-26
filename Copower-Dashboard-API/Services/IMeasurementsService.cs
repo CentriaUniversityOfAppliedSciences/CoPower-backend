@@ -174,8 +174,6 @@ namespace Copower_API.Services
                     throw new Exception("790563");
                 }
 
-                string dbname = "";
-
                 var sensor = await commonContext.SensorSettings.FirstOrDefaultAsync(s => s.Id == sensorId && s.Deleted == null && ((s.Organisation == user.Organisation) || (s.Shared > 0) || (user.Access == "appadmin"))) ?? throw new Exception("997905");
 
                 var dbid = await commonContext.DB.FirstOrDefaultAsync(d => d.Id == sensor.DBID);
@@ -184,18 +182,18 @@ namespace Copower_API.Services
                     generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "DBID not found > " + sensor.Id + " | " + sensor.DBID);
                     throw new Exception("852606");
                 }
-
-                dbname = dbid.DBId;
+                var chartFetchSettings = await commonContext.ChartDataFetchSettings.FirstOrDefaultAsync(a => a.Id == dbid.ChartFetch) ?? throw new Exception("355281");
+                var dbName = dbid.DBId;
 
                 string stime = startTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
                 string etime = endTime.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
 
                 var cresults = new List<dynamic>();
 
-                string sqlQuery = dBQueries.GetMeasurementsSQL(dbname, sensor.DBVALUE, stime, etime, sensor.ValueChange);
+                string sqlQuery = dBQueries.GetMeasurementsSQL(chartFetchSettings, dbName, sensor.DBVALUE, stime, etime, sensor.ValueChange);
 
                 List<MeasurementData> results = [];
-                switch (dbname)
+                switch (dbName)
                 {
                     case "commondata":
                         {
@@ -220,14 +218,14 @@ namespace Copower_API.Services
                         }
                     default:
                         { 
-                            generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Invalid database name > " + dbname);
+                            generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Invalid database name > " + dbName);
                             throw new Exception("376240");
                         }
                 }
 
                 if (results != null)
                 {
-                    cresults.AddRange(results.Select(row => new { x = new DateTimeOffset(row.Date).ToUnixTimeSeconds(), y = row.Value }));
+                    cresults.AddRange(results.Select(row => new { x = new DateTimeOffset(row.Date).ToUniversalTime(), y = row.Value }));
                 }
 
                 generalService.WriteLogMessage("api", reqid, "Measurements.GetMeasurements", "Measurements retrieved > " + cresults.Count);

@@ -15,7 +15,6 @@ namespace Copower_API.Controllers
     /// </remarks>
     /// <param name="organisationService">Organisation service</param>
     /// <param name="utilsService">Utils service</param>
-    [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
     [Route("api/[controller]")]
     [ApiController]
     public class OrganisationController(IOrganisationService organisationService, IUtilsService utilsService) : ControllerBase
@@ -26,6 +25,7 @@ namespace Copower_API.Controllers
         /// <param name="organisation">Organisation name</param>
         /// <returns></returns>
         [HttpPost("add")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> AddOrganisation([FromBody] OrganisationAdd organisation)
         {
             try
@@ -53,6 +53,7 @@ namespace Copower_API.Controllers
         /// <param name="org">Organisation id</param>
         /// <returns></returns>
         [HttpDelete("delete")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public IActionResult DeleteOrganisation(Guid org)
         {
             try
@@ -81,6 +82,7 @@ namespace Copower_API.Controllers
         /// <param name="edit">Organisation edit data</param>
         /// <returns></returns>
         [HttpPut("edit")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> EditOrganisation([FromBody] OrganisationEdit edit)
         {
             try
@@ -93,7 +95,7 @@ namespace Copower_API.Controllers
 
                 var userId = utilsService.CheckAuthorization(Request);
 
-                organisationService.Edit(userId, edit);
+                await organisationService.Edit(userId, edit);
 
                 return Ok();
             }
@@ -134,6 +136,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <returns>List of organisations</returns>
         [HttpGet("init")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Init()
         {
             try
@@ -158,6 +161,7 @@ namespace Copower_API.Controllers
         /// <param name="model">Organisation update data</param>
         /// <returns></returns>
         [HttpPost("update")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> UpdateOrganisation(OrganisationUpdate model)
         {
             try

@@ -126,6 +126,10 @@
         /// </summary>
         public required List<string> ChartTypes { get; set; }
         /// <summary>
+        /// Dashboard settings
+        /// </summary>
+        public required DashboardSettings Dashboard { get; set; }
+        /// <summary>
         /// Forgotten password token expire in hours
         /// </summary>
         public required int ForgottenPasswordTokenExpire { get; set; }
@@ -156,5 +160,39 @@
         /// <remarks>This property must be initialized before use. It determines how value-added tax (VAT)
         /// is calculated and applied to transactions throughout the application.</remarks>
         public required SettingsVAT VAT { get; set; }
+    }
+
+    /// <summary>
+    /// Chart item sizes
+    /// </summary>
+    public class ChartSizes
+    {
+        /// <summary>
+        /// Maximum height
+        /// </summary>
+        public required int MaxHeight { get; set; }
+        /// <summary>
+        /// Maximum width
+        /// </summary>
+        public required int MaxWidth { get; set; }
+        /// <summary>
+        /// Minimum height
+        /// </summary>
+        public required int MinHeight { get; set; }
+        /// <summary>
+        /// Minimum height
+        /// </summary>
+        public required int MinWidth { get; set; }
+    }
+
+    /// <summary>
+    /// Dashboard settings
+    /// </summary>
+    public class DashboardSettings
+    {
+        /// <summary>
+        /// Chart item sizes
+        /// </summary>
+        public required ChartSizes ChartSize { get; set; }
     }
 }

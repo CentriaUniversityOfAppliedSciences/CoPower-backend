@@ -55,8 +55,8 @@ namespace Copower_API.Controllers
         /// <param name="model">Start and end time of the required measurement data</param>
         /// <param name="sensor">Sensor Id</param>
         /// <returns></returns>
-        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpPost("{sensor:Guid}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> MeasurementsGet([FromBody] MeasurementsGetModel model, Guid sensor)
         {
             try
@@ -82,8 +82,8 @@ namespace Copower_API.Controllers
         /// <param name="model">Array of measurement data to save</param>
         /// <param name="sensorId">Sensor Id</param>
         /// <returns></returns>
-        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpPost("save/{sensorId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Save([FromBody] MeasurementsSaveModel model, Guid sensorId)
         {
             try

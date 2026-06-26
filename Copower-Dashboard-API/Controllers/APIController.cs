@@ -10,7 +10,6 @@ namespace Copower_API.Controllers
     /// </summary>
     /// <param name="utilsService">Utils services</param>
     /// <param name="apiService">API services</param>
-    [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
     [Route("api/[controller]")]
     [ApiController]
     public class APIController(IUtilsService utilsService, IAPIService apiService) : ControllerBase
@@ -19,6 +18,7 @@ namespace Copower_API.Controllers
         /// Create a new API key for user's own organisation
         /// </summary>
         /// <returns></returns>
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpPost("add")]
         public async Task<IActionResult> AddToUserOrganisation()
         {
@@ -43,6 +43,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <param name="orgId">Organisation Id to which create the API key for</param>
         /// <returns></returns>
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpPost("add/{orgId}")]
         public async Task<IActionResult> Add(Guid orgId)
         {
@@ -67,6 +68,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <param name="apikey">Api key to delete</param>
         /// <returns></returns>
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpDelete("delete/{apikey}")]
         public async Task<IActionResult> Delete(String apikey)
         {
@@ -90,6 +92,7 @@ namespace Copower_API.Controllers
         /// Gets the initialisation data for API keys (only for appadmin's)
         /// </summary>
         /// <returns>List of API keys</returns>
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpGet("init")]
         public async Task<IActionResult> GetInit()
         {
@@ -113,6 +116,7 @@ namespace Copower_API.Controllers
         /// Gets the list of API keys
         /// </summary>
         /// <returns>List of API keys</returns>
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         [HttpGet("list")]
         public async Task<IActionResult> GetList()
         {

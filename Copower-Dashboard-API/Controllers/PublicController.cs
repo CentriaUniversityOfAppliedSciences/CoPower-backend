@@ -21,8 +21,8 @@ namespace Copower_API.Controllers
         /// Get public dashboard configuration
         /// </summary>
         /// <returns>Public dashboard configuration</returns>
-        [AllowAnonymous]
         [HttpGet("dashboard/get")]
+        [AllowAnonymous]
         public async Task<IActionResult> Get()
         {
             try
@@ -47,6 +47,7 @@ namespace Copower_API.Controllers
         /// <param name="sensor">Sensor Id</param>
         /// <returns></returns>
         [HttpPost("measurements/{sensor:Guid}")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetMeasurements([FromBody] MeasurementsGetModel model, Guid sensor)
         {
             try

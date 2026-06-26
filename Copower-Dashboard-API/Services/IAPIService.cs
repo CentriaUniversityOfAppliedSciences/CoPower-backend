@@ -269,14 +269,14 @@ namespace Copower_API.Services
                     throw new Exception("927391");
 
                 var akey = await commonContext.API.FirstOrDefaultAsync(a => a.Id == apikey) ?? throw new Exception("994359");
-                if (data.Count > 30)
+                if (data.Count > 40)
                     throw new Exception("230809");
 
                 var org = await commonContext.Organisation.FirstOrDefaultAsync(a => a.Id == akey.Organisation) ?? throw new Exception("809318");
 
                 foreach (var s in data)
                 {
-                    if (s.Values.Count > 100)
+                    if (s.Values.Count > 10)
                         continue;
 
                     var sensor = await commonContext.SensorSettings.FirstOrDefaultAsync(a => a.Id == s.Sensor);

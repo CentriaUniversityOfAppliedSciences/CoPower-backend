@@ -95,14 +95,36 @@ ALTER TABLE public."API" OWNER TO commonapi;
 --
 
 CREATE TABLE public."DB" (
+    "ChartFetch" integer DEFAULT 0,
+    "DBId" text NOT NULL,
     "Id" uuid DEFAULT gen_random_uuid() NOT NULL,
     "IdNumber" integer,
-    "Name" text NOT NULL,
-    "DBId" text NOT NULL
+    "Name" text NOT NULL
 );
 
 
 ALTER TABLE public."DB" OWNER TO commonapi;
+
+--
+-- Name: ChartDataFetchSettings; Type: TABLE; Schema: public; Owner: commonapi
+--
+
+CREATE TABLE IF NOT EXISTS public."ChartDataFetchSettings"
+(
+    "Id" integer NOT NULL,
+    "Day1" text,
+    "Day2" text,
+    "Day3" text,
+    "Day7" text,
+    "Day14" text,
+    "Day30" text,
+    "Day90" text,
+    "Day180" text,
+    "Day365" text
+);
+
+
+ALTER TABLE public."ChartDataFetchSettings" OWNER TO commonapi;
 
 --
 -- Name: DashboardDefault; Type: TABLE; Schema: public; Owner: commonapi
@@ -228,6 +250,14 @@ CREATE TABLE public."User" (
 ALTER TABLE public."User" OWNER TO commonapi;
 
 --
+-- Data for Name: ChartDataFetchSettings; Type: TABLE DATA; Schema: public; Owner: commonapi
+--
+
+INSERT INTO public."ChartDataFetchSettings"(
+	"Id", "Day1", "Day2", "Day3", "Day7", "Day14", "Day30", "Day90", "Day180", "Day365")
+	VALUES (0, 'null', 'null', 'null', '30 minute', '1 hour', '2 hour', '6 hour', '12 hour', '1 day');
+
+--
 -- Data for Name: DB; Type: TABLE DATA; Schema: public; Owner: commonapi
 --
 
@@ -271,6 +301,14 @@ SELECT pg_catalog.setval('public."Locale_Id_seq"', 1, false);
 
 ALTER TABLE ONLY public."API"
     ADD CONSTRAINT "API_pkey" PRIMARY KEY ("Id");
+
+
+--
+-- Name: DB PK_ChartDataFetchSettings; Type: CONSTRAINT; Schema: public; Owner: commonapi
+--
+
+ALTER TABLE ONLY public."ChartDataFetchSettings"
+    ADD CONSTRAINT "PK_ChartDataFetchSettings" PRIMARY KEY ("Id");
 
 
 --

@@ -87,6 +87,11 @@ namespace Copower_API.Entities
         /// Sensor associated with the UI element.
         /// </summary>
         public required List<UserSensorData> Sensors { get; set; }
+
+        /// <summary>
+        /// Set of the grid item in x,y
+        /// </summary>
+        public int[] Size { get; set; } = [1, 1];
     }
 
     /// <summary>

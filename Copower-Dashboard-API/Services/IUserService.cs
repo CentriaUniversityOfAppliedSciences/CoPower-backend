@@ -113,6 +113,8 @@ namespace Copower_API.Services
                 generalService.WriteLogMessage("api", reqid, "User.Authenticate", "New request");
                 await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
+                model.Email = model.Email.ToLower().Trim();
+
                 if (utilsService.CheckEmailValidity(model.Email) == false) // Check email
                 {
                     generalService.WriteLogMessage("api", reqid, "User.Authenticate", "Invalid email > " + model.Email);
@@ -126,7 +128,7 @@ namespace Copower_API.Services
                     throw new Exception("239089");
                 }
 
-                var dbUser = await commonContext.User.SingleOrDefaultAsync(u => u.Email == model.Email.Trim() && u.Deleted == null && u.Registered != null) ?? throw new Exception("239089"); // Find user
+                var dbUser = await commonContext.User.SingleOrDefaultAsync(u => u.Email == model.Email && u.Deleted == null && u.Registered != null) ?? throw new Exception("239089"); // Find user
 
                 if (dbUser.Disabled == true) // User is disabled
                 {
@@ -157,10 +159,6 @@ namespace Copower_API.Services
                     dbUser.FailedLogins = 0;
                     await commonContext.SaveChangesAsync();
                 }
-
-                // Update last login
-                dbUser.LastLogin = DateTime.UtcNow;
-                await commonContext.SaveChangesAsync();
 
                 var validUser = new AuthUserModel
                 {
@@ -305,7 +303,7 @@ namespace Copower_API.Services
                 generalService.WriteLogMessage("api", reqid, "User.ForgotPassword", "New request");
                 await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
 
-                var user = await utilsService.GetUserByEmail(email, reqid, "user") ?? throw new Exception("798710");
+                var user = await utilsService.GetUserByEmail(email.ToLower(), reqid, "user") ?? throw new Exception("798710");
 
                 // generate password reset token
                 var resetTokenId = Guid.NewGuid();
@@ -418,10 +416,11 @@ namespace Copower_API.Services
                 var resetToken = await commonContext.ResetTokens.FirstOrDefaultAsync(a => a.Token == model.Token && a.Used == null && a.Expiry > DateTimeOffset.UtcNow) ?? throw new Exception("847399");
 
                 // Verify the user exists
-                var user = await utilsService.GetUserById(resetToken.UserId, reqid, "password_reset") ?? throw new Exception("847339");
+                var user = await commonContext.User.FirstOrDefaultAsync(u => u.Id == resetToken.UserId && u.Deleted == null && u.Disabled == false) ?? throw new Exception("847339");
 
                 user.Password = utilsService.GeneratePasswordHash(model.NewPassword);
-                user.Registered = DateTime.UtcNow;
+                if (user.Registered == null)
+                    user.Registered = DateTime.UtcNow;
                 resetToken.Used = DateTime.UtcNow;
                 await commonContext.SaveChangesAsync();
 

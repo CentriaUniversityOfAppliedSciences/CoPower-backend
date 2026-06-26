@@ -13,9 +13,8 @@ namespace Copower_API.Controllers
     /// <param name="usersService">Users service component</param>
     /// <param name="utilsService">Utils service component</param>
     [Route("api/[controller]")]
-    [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
     [ApiController]
-    public class UsersController(IEmailService emailService, IUsersService usersService, IUtilsService utilsService) : ControllerBase
+    public class UsersController(IUsersService usersService, IUtilsService utilsService) : ControllerBase
     {
         /// <summary>
         /// Add new user to the system.
@@ -24,6 +23,7 @@ namespace Copower_API.Controllers
         /// <param name="orgId">Organisation ID</param>
         /// <returns></returns>
         [HttpPut("add/{orgId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<ActionResult<Boolean>> Add([FromBody] UsersAdd add, Guid orgId)
         {
             try
@@ -51,6 +51,7 @@ namespace Copower_API.Controllers
         /// <param name="userId"></param>
         /// <returns></returns>
         [HttpDelete("{orgId}/{userId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<ActionResult<Boolean>> Delete(Guid orgId, Guid userId)
         {
             try
@@ -82,6 +83,7 @@ namespace Copower_API.Controllers
         /// <param name="userId">User ID</param>
         /// <returns></returns>
         [HttpPut("edit/{orgId}/{userId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<ActionResult<Boolean>> Edit([FromBody] UsersEditAdmin edit, Guid orgId, Guid userId)
         {
             try
@@ -106,15 +108,11 @@ namespace Copower_API.Controllers
         }
 
         /// <summary>
-        /// Email service component
-        /// </summary>
-        public IEmailService EmailService { get; } = emailService;
-
-        /// <summary>
         /// Retrieves all users in the system.
         /// </summary>
         /// <returns>A list of all users as UserViewModel objects.</returns>
         [HttpGet("")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<ActionResult<IEnumerable<UserViewModel>>> GetAllUsers()
         {
             try
@@ -138,6 +136,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <returns>A list of all users as UserViewModel objects.</returns>
         [HttpPost("resend-invitation/{resendUserId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<ActionResult<Boolean>> ResendInvitation(Guid resendUserId)
         {
             try

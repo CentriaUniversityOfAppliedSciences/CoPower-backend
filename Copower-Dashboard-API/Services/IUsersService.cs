@@ -471,7 +471,7 @@ namespace Copower_API.Services
                 {
                     Access = user.Access,
                     Created = DateTime.UtcNow,
-                    Email = user.Email,
+                    Email = user.Email.ToLower().Trim(),
                     Name = user.Name,
                     Password = "",
                     Organisation = orgId

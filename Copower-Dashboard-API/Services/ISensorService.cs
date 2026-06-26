@@ -269,6 +269,7 @@ namespace Copower_API.Services
                             Name = db.Name
                         });
                     }
+                    sourcesName = [.. sourcesName.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase)];
 
                     // Organisations
                     var orgs = await commonContext.Organisation.ToListAsync();
@@ -512,29 +513,26 @@ namespace Copower_API.Services
             try
             {
                 await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
+                await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
+                await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
+                await using var database2Context = await _database2ContextFactory.CreateDbContextAsync();
 
                 System.Data.Common.DbConnection? connection = null;
                 switch (source)
                 {
                     case "commondata":
                         {
-                            await using var commondataContext = await _commondataContextFactory.CreateDbContextAsync();
                             connection = commondataContext.Database.GetDbConnection();
-                            await commondataContext.DisposeAsync();
                             break;
                         }
                     case "database1":
                         {
-                            await using var database1Context = await _database1ContextFactory.CreateDbContextAsync();
                             connection = database1Context.Database.GetDbConnection();
-                            await database1Context.DisposeAsync();
                             break;
                         }
                     case "database2":
                         {
-                            await using var database2Context = await _database2ContextFactory.CreateDbContextAsync();
                             connection = database2Context.Database.GetDbConnection();
-                            await database2Context.DisposeAsync();
                             break;
                         }
                     default:
@@ -577,7 +575,7 @@ namespace Copower_API.Services
 
                 return sourcesResult;
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 return [];
             }

@@ -225,15 +225,19 @@ services.AddAuthentication(options =>
         {
             var hasApiKey = context.Request.Headers.ContainsKey("X-CoPower-API");
             var authHeader = context.Request.Headers.Authorization.ToString();
-            var isBearer = authHeader?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true;
+            var isBearer = !string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
 
-            if (isBearer && hasApiKey)
-            {
-                // If both are present, we can choose either one.
-                // Here we choose JWT Bearer by default.
+            if (isBearer && hasApiKey) // choose one when both exist
                 return JwtBearerDefaults.AuthenticationScheme;
-            }
-            return "error"; // No default scheme, let the framework decide based on the request
+
+            if (isBearer)
+                return JwtBearerDefaults.AuthenticationScheme;
+
+            if (hasApiKey)
+                return ApiKeyAuthenticationOptions.DefaultScheme;
+
+            return null;
+
         };
     });
 

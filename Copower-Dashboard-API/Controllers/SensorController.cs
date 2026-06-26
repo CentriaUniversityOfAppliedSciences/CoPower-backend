@@ -18,7 +18,6 @@ namespace Copower_API.Controllers
     /// <param name="sensorService">Sensor service</param>
     /// <param name="utilsService">Utils service</param>
     /// <param name="settings">Application settings</param>
-    [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
     [Route("api/[controller]")]
     [ApiController]
     public class SensorController(IConfiguration configuration, IGeneralService generalService, ISensorService sensorService, IUtilsService utilsService, IOptions<Settings> settings) : ControllerBase
@@ -35,6 +34,7 @@ namespace Copower_API.Controllers
         /// <param name="orgId">Organisation Id</param>
         /// <returns></returns>
         [HttpPut("add/{orgId:Guid}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Add([FromBody] SensorAddEditModel sensorData, Guid orgId)
         {
             try
@@ -69,6 +69,7 @@ namespace Copower_API.Controllers
         /// <param name="sensorId">Sensor Id</param>
         /// <returns></returns>
         [HttpDelete("{orgId}/{sensorId}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Delete(Guid orgId, Guid sensorId)
         {
             try
@@ -96,6 +97,7 @@ namespace Copower_API.Controllers
         /// <param name="sensorId">Sensor Id</param>
         /// <returns></returns>
         [HttpPut("edit/{orgId:Guid}/{sensorId:Guid}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Edit([FromBody] SensorAddEditModel sensorData, Guid orgId, Guid sensorId)
         {
             try
@@ -131,6 +133,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <returns>List of sensors</returns>
         [HttpGet()]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> Get()
         {
             try
@@ -154,8 +157,8 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <param name="organisation">Organisation Id</param>
         /// <returns>List of sensors</returns>
-        [AllowAnonymous]
         [HttpGet("{organisation:Guid}/list")]
+        [AllowAnonymous]
         public async Task<IActionResult> GetList(Guid organisation)
         {
             try
@@ -179,6 +182,7 @@ namespace Copower_API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("edit/{dashboardType:regex(^(default|public|user)$)}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> GetEdit(string dashboardType)
         {
             try

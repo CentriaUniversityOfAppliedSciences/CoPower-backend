@@ -105,7 +105,6 @@ namespace Copower_API.Controllers
         /// </returns>
         [HttpPost("forgot-password")]
         [Authorize(AuthenticationSchemes = "ApiKey")]
-        //[SwaggerOperation(Tags = new[] { "Password" })]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordModel model)
         {
             try

@@ -15,15 +15,6 @@ namespace Copower_API.Services
     public interface IDashboardService
     {
         /// <summary>
-        /// Retrieves the list of sensors configured for editing on the specified user's dashboard.
-        /// </summary>
-        /// <param name="userId">The unique identifier of the user whose dashboard sensors are to be retrieved.</param>
-        /// <param name="dashboardType">Dashboard type (default, public, user)</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains a list of user sensor UI models
-        /// for the user's dashboard. The list is empty if the user has no sensors configured for editing.</returns>
-        Task<List<UserDashboard>> GetDashboardEdit(Guid userId, string dashboardType);
-
-        /// <summary>
         /// Retrieves the list of dashboard sensors available to the specified user.
         /// </summary>
         /// <param name="userId">The unique identifier of the user whose dashboard sensors are to be retrieved.</param>
@@ -67,64 +58,6 @@ namespace Copower_API.Services
     public partial class DashboardService(IDbContextFactory<CommonContext> commonContextFactory, IGeneralService generalService, IUtilsService utilsService, IOptions<Settings> settings) : IDashboardService
     {
         private readonly IDbContextFactory<CommonContext> _commonContextFactory = commonContextFactory;
-
-        /// <inheritdoc/>
-        public async Task<List<UserDashboard>> GetDashboardEdit(Guid userId, string dashboardType)
-        {
-            var reqid = utilsService.GetRequestId();
-
-            try
-            {
-                generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "New request");
-                await using var commonContext = await _commonContextFactory.CreateDbContextAsync();
-
-                var user = await utilsService.GetUser(userId, reqid, "Dashboard.GetDashboardEdit") ?? throw new Exception("355281");
-                utilsService.CheckIfHasOrganisation(user);
-
-                if ((user.Access != "appadmin") && (dashboardType != "user"))
-                {
-                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Invalid access > " + user.Id);
-                    throw new Exception("348751");
-                }
-
-                var success = false;
-                switch (dashboardType)
-                {
-                    case "default":
-                        {
-                            var dashboard = await commonContext.DashboardDefault.FirstOrDefaultAsync(d => d.Id == "default");
-                            return dashboard?.Dashboard ?? [];
-                        }
-                    case "public":
-                        {
-                            var dashboard = await commonContext.DashboardDefault.FirstOrDefaultAsync(d => d.Id == "public");
-                            return dashboard?.Dashboard ?? [];
-                        }
-                    case "user":
-                        {
-                            var dashboard = await commonContext.DashboardDefault.FirstOrDefaultAsync(d => d.Id == user.Id.ToString());
-                            return dashboard?.Dashboard ?? [];
-                        }
-                }
-
-                if (success == true)
-                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Default dashboard retrieved successfully");
-                else
-                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Invalid dashboard type > " + dashboardType + ", " + user.Id);
-
-                throw new Exception("284230");
-            }
-            catch (Exception e)
-            {
-                if (e.Message.Length > 6)
-                {
-                    generalService.WriteLogMessage("api", reqid, "Dashboard.GetDashboardEdit", "Error occured > " + e.Message);
-                    throw new Exception("174361");
-                }
-                else
-                    throw new Exception(e.Message);
-            }
-        }
 
         /// <inheritdoc/>
         public async Task<List<DashboardUIView>> GetDashboardSensors(Guid userId)
@@ -249,7 +182,8 @@ namespace Copower_API.Services
                     var dashboardObject = new DashboardUIView
                     {
                         Name = sui.Name,
-                        Sensors = []
+                        Sensors = [],
+                        Size = sui.Size
                     };
                     foreach (var sobj in sui.Sensors)
                     {
@@ -371,6 +305,12 @@ namespace Copower_API.Services
                     if (obj.Name.Length > settings.Value.InputMax.DashboardChartName)
                         throw new Exception("993842");
 
+                    if (obj.Size.Length != 2)
+                        throw new Exception("179489");
+
+                    if ((obj.Size[0] < settings.Value.Dashboard.ChartSize.MinWidth) || (obj.Size[0] > settings.Value.Dashboard.ChartSize.MaxWidth) || (obj.Size[1] < settings.Value.Dashboard.ChartSize.MinHeight) || (obj.Size[1] > settings.Value.Dashboard.ChartSize.MaxHeight))
+                        throw new Exception("179489");
+
                     foreach (var snr in obj.Sensors)
                     {
                         if ((ColorHEXRegex().IsMatch(snr.Color) == false) ||
@@ -389,7 +329,8 @@ namespace Copower_API.Services
                 List<UserDashboard> dashboardUpdate = [.. dashboard.Select(obj => new UserDashboard
                 {
                     Name = obj.Name,
-                    Sensors = obj.Sensors
+                    Sensors = obj.Sensors,
+                    Size = obj.Size
                 })];
 
                 switch (dashboardType)
@@ -409,7 +350,7 @@ namespace Copower_API.Services
                             {
                                 await commonContext.DashboardDefault.AddAsync(new DashboardDefault
                                 {
-                                    Dashboard = [],
+                                    Dashboard = dashboardUpdate,
                                     Id = user.Id.ToString() ?? throw new Exception("385100")
                                 });
                             }

@@ -13,6 +13,11 @@
         /// Sensors
         /// </summary>
         public required List<UserSensorViewData> Sensors { get; set; }
+
+        /// <summary>
+        /// Size of the grid item in x,y
+        /// </summary>
+        public int[] Size { get; set; } = [1, 1];
     }
 
     /// <summary>

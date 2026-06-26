@@ -10,39 +10,16 @@ namespace Copower_API.Controllers
     /// </summary>
     /// <param name="dashboardService">Dashboard service component</param>
     /// <param name="utilsService">Utils service component</param>
-    [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
     [Route("api/[controller]")]
     [ApiController]
     public class DashboardController(IDashboardService dashboardService, IUtilsService utilsService) : ControllerBase
     {
         /// <summary>
-        /// Get dashboard edit data
-        /// </summary>
-        /// <returns></returns>
-        [HttpGet("edit/get/{dashboardType:regex(^(default|public|user)$)}")]
-        public async Task<IActionResult> GetDashboardEdit(string dashboardType)
-        {
-            try
-            {
-                var userId = utilsService.CheckAuthorization(Request);
-                var dashboard = await dashboardService.GetDashboardEdit(userId, dashboardType);
-
-                return Ok(dashboard);
-            }
-            catch (Exception e)
-            {
-                if (e.Message.Length == 6)
-                    return BadRequest("DSGE" + e.Message);
-                else
-                    return BadRequest("DSGE481713");
-            }
-        }
-
-        /// <summary>
         /// Get dashboard sensors
         /// </summary>
         /// <returns>Return sensors for the user's dashboard</returns>
         [HttpGet("sensors/get")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> GetDashboardSensors()
         {
             try
@@ -66,7 +43,8 @@ namespace Copower_API.Controllers
         /// Get default or user dashboard
         /// </summary>
         /// <returns></returns>
-        [HttpGet("get/{dashboardType:regex(^(default|user)$)}")]
+        [HttpGet("get/{dashboardType:regex(^(default|public|user)$)}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> GetDefaultOrUserDashboard(string dashboardType)
         {
             try
@@ -95,6 +73,7 @@ namespace Copower_API.Controllers
         /// <returns>An IActionResult containing the HMI dashboard data if the request is successful; otherwise, a BadRequest
         /// result indicating an error.</returns>
         [HttpGet("get/hmi")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> GetHMI()
         {
             try
@@ -144,6 +123,7 @@ namespace Copower_API.Controllers
         /// <param name="dashboard">New dashboard</param>
         /// <returns></returns>
         [HttpPost("update/{dashboardType:regex(^(default|public|user)$)}")]
+        [Authorize(AuthenticationSchemes = "ApiKeyAndJwt")]
         public async Task<IActionResult> UpdateDashboard(string dashboardType, [FromBody] List<DashboardUIEdit> dashboard)
         {
             try

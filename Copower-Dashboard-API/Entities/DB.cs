@@ -8,6 +8,11 @@ namespace Copower_API.Entities
     public class DB
     {
         /// <summary>
+        /// Chart fetch setting
+        /// </summary>
+        public required int ChartFetch { get; set; }
+
+        /// <summary>
         /// DB id
         /// </summary>
         public required String DBId { get; set; }

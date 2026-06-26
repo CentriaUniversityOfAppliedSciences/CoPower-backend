@@ -122,12 +122,6 @@ namespace Copower_API.Services
         /// <inheritdoc/>
         public async Task<bool> PrepareSendEmail(String reqid, Guid userId, String topic, String language, Dictionary<string, string> data)
         {
-            if (_emailConfig.Active == false) // Email service is not active, skip sending email
-            {
-                Console.WriteLine("Email service is not active, not sending email");
-                return true;
-            }
-
             var text = await _commonContext.Locale.FirstOrDefaultAsync(l => l.Key == topic && l.Language == language && l.Type == "email") ?? throw new Exception("528340");
             String textMessage = Regex.Unescape(text.Message);
 
@@ -136,6 +130,17 @@ namespace Copower_API.Services
             {
                 if (textMessage.Contains(tobj.Key) == true)
                     textMessage = textMessage.Replace(tobj.Key, tobj.Value);
+            }
+
+            if (_emailConfig.Active == false) // Email service is not active, skip sending email
+            {
+                Console.WriteLine("Email service is not active, not sending email");
+                Console.WriteLine("----------");
+                Console.WriteLine("RequestId: " + reqid);
+                Console.WriteLine("UserId: " + userId);
+                Console.WriteLine("Topic: " + text.Topic);
+                Console.WriteLine("Message: " + textMessage);
+                return true;
             }
 
             return await SendEmail(reqid, userId, text.Topic, textMessage);
@@ -160,7 +165,7 @@ namespace Copower_API.Services
                 if (user == null)
                     return false;
 
-                _generalService.WriteLogMessage("email", reqid, "Email.SendEmail", "Sending email > " + topic + " to " + user.Id);
+                _generalService.WriteLogMessage("email", reqid, "Email.SendEmail", "Sending email > " + topic + " to " + userId);
 
                 var clientSecretCredential = new ClientSecretCredential(_emailConfig.TenantId, _emailConfig.ClientId, _emailConfig.ClientSecret);
 
@@ -179,11 +184,11 @@ namespace Copower_API.Services
                         ToRecipients =
                         [
                             new() {
-                            EmailAddress = new EmailAddress
-                            {
-                                Address = user.Email
+                                EmailAddress = new EmailAddress
+                                {
+                                    Address = user.Email
+                                }
                             }
-                        }
                         ]
                     }
                 };
